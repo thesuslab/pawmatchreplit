@@ -386,4 +386,272 @@ export class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+// Database Storage Implementation
+import { db } from "./db";
+import { eq, and, or, desc, sql } from "drizzle-orm";
+
+export class DatabaseStorage implements IStorage {
+  async getUser(id: number): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user || undefined;
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.email, email));
+    return user || undefined;
+  }
+
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user || undefined;
+  }
+
+  async createUser(insertUser: InsertUser): Promise<User> {
+    const [user] = await db
+      .insert(users)
+      .values(insertUser)
+      .returning();
+    return user;
+  }
+
+  // Pet operations
+  async getPet(id: number): Promise<Pet | undefined> {
+    const [pet] = await db.select().from(pets).where(eq(pets.id, id));
+    return pet || undefined;
+  }
+
+  async getPetsByUserId(userId: number): Promise<Pet[]> {
+    return await db.select().from(pets).where(or(eq(pets.userId, userId), eq(pets.ownerId, userId)));
+  }
+
+  async createPet(insertPet: InsertPet): Promise<Pet> {
+    const [pet] = await db
+      .insert(pets)
+      .values({
+        ...insertPet,
+        ownerId: insertPet.ownerId || insertPet.userId || 0,
+      })
+      .returning();
+    return pet;
+  }
+
+  async updatePet(id: number, updates: Partial<Pet>): Promise<Pet | undefined> {
+    const [pet] = await db
+      .update(pets)
+      .set(updates)
+      .where(eq(pets.id, id))
+      .returning();
+    return pet || undefined;
+  }
+
+  async getPublicPets(): Promise<Pet[]> {
+    return await db.select().from(pets).where(eq(pets.isPublic, true));
+  }
+
+  // Post operations
+  async getPost(id: number): Promise<Post | undefined> {
+    const [post] = await db.select().from(posts).where(eq(posts.id, id));
+    return post || undefined;
+  }
+
+  async getPostsByPetId(petId: number): Promise<Post[]> {
+    return await db.select().from(posts).where(eq(posts.petId, petId)).orderBy(desc(posts.timestamp));
+  }
+
+  async getPostsForFeed(userId: number): Promise<Post[]> {
+    // Get posts from followed pets and own pets
+    const userPets = await this.getPetsByUserId(userId);
+    const userPetIds = userPets.map(pet => pet.id);
+    
+    const userFollows = await db.select().from(follows).where(eq(follows.followerId, userId));
+    const followedPetIds = userFollows.map(follow => follow.followedPetId);
+    
+    const allRelevantPetIds = [...userPetIds, ...followedPetIds];
+    
+    if (allRelevantPetIds.length === 0) {
+      return [];
+    }
+    
+    return await db.select().from(posts)
+      .where(sql`${posts.petId} = ANY(${allRelevantPetIds})`)
+      .orderBy(desc(posts.timestamp));
+  }
+
+  async createPost(insertPost: InsertPost): Promise<Post> {
+    const [post] = await db
+      .insert(posts)
+      .values(insertPost)
+      .returning();
+    return post;
+  }
+
+  async updatePost(id: number, updates: Partial<Post>): Promise<Post | undefined> {
+    const [post] = await db
+      .update(posts)
+      .set(updates)
+      .where(eq(posts.id, id))
+      .returning();
+    return post || undefined;
+  }
+
+  // Medical record operations
+  async getMedicalRecord(id: number): Promise<MedicalRecord | undefined> {
+    const [record] = await db.select().from(medicalRecords).where(eq(medicalRecords.id, id));
+    return record || undefined;
+  }
+
+  async getMedicalRecordsByPetId(petId: number): Promise<MedicalRecord[]> {
+    return await db.select().from(medicalRecords).where(eq(medicalRecords.petId, petId)).orderBy(desc(medicalRecords.date));
+  }
+
+  async createMedicalRecord(insertRecord: InsertMedicalRecord): Promise<MedicalRecord> {
+    const [record] = await db
+      .insert(medicalRecords)
+      .values(insertRecord)
+      .returning();
+    return record;
+  }
+
+  async updateMedicalRecord(id: number, updates: Partial<MedicalRecord>): Promise<MedicalRecord | undefined> {
+    const [record] = await db
+      .update(medicalRecords)
+      .set(updates)
+      .where(eq(medicalRecords.id, id))
+      .returning();
+    return record || undefined;
+  }
+
+  // Like operations
+  async getLike(userId: number, postId: number): Promise<Like | undefined> {
+    const [like] = await db.select().from(likes).where(and(eq(likes.userId, userId), eq(likes.postId, postId)));
+    return like || undefined;
+  }
+
+  async createLike(insertLike: InsertLike): Promise<Like> {
+    const [like] = await db
+      .insert(likes)
+      .values(insertLike)
+      .returning();
+      
+    // Update post likes count
+    await db.update(posts)
+      .set({ likesCount: sql`${posts.likesCount} + 1` })
+      .where(eq(posts.id, like.postId));
+    
+    return like;
+  }
+
+  async deleteLike(userId: number, postId: number): Promise<boolean> {
+    const result = await db.delete(likes)
+      .where(and(eq(likes.userId, userId), eq(likes.postId, postId)));
+    
+    if (result.rowCount && result.rowCount > 0) {
+      // Update post likes count
+      await db.update(posts)
+        .set({ likesCount: sql`${posts.likesCount} - 1` })
+        .where(eq(posts.id, postId));
+      return true;
+    }
+    return false;
+  }
+
+  async getLikesByPostId(postId: number): Promise<Like[]> {
+    return await db.select().from(likes).where(eq(likes.postId, postId));
+  }
+
+  // Follow operations
+  async getFollow(followerId: number, followedPetId: number): Promise<Follow | undefined> {
+    const [follow] = await db.select().from(follows).where(and(eq(follows.followerId, followerId), eq(follows.followedPetId, followedPetId)));
+    return follow || undefined;
+  }
+
+  async createFollow(insertFollow: InsertFollow): Promise<Follow> {
+    const [follow] = await db
+      .insert(follows)
+      .values(insertFollow)
+      .returning();
+    return follow;
+  }
+
+  async deleteFollow(followerId: number, followedPetId: number): Promise<boolean> {
+    const result = await db.delete(follows)
+      .where(and(eq(follows.followerId, followerId), eq(follows.followedPetId, followedPetId)));
+    return result.rowCount ? result.rowCount > 0 : false;
+  }
+
+  async getFollowsByUserId(userId: number): Promise<Follow[]> {
+    return await db.select().from(follows).where(eq(follows.followerId, userId));
+  }
+
+  // Comment operations
+  async getComment(id: number): Promise<Comment | undefined> {
+    const [comment] = await db.select().from(comments).where(eq(comments.id, id));
+    return comment || undefined;
+  }
+
+  async getCommentsByPostId(postId: number): Promise<Comment[]> {
+    return await db.select().from(comments).where(eq(comments.postId, postId)).orderBy(desc(comments.timestamp));
+  }
+
+  async createComment(insertComment: InsertComment): Promise<Comment> {
+    const [comment] = await db
+      .insert(comments)
+      .values(insertComment)
+      .returning();
+      
+    // Update post comments count
+    await db.update(posts)
+      .set({ commentsCount: sql`${posts.commentsCount} + 1` })
+      .where(eq(posts.id, comment.postId));
+    
+    return comment;
+  }
+
+  // Match operations
+  async getMatch(userId: number, petId1: number, petId2: number): Promise<Match | undefined> {
+    const [match] = await db.select().from(matches)
+      .where(and(
+        eq(matches.userId, userId),
+        or(
+          and(eq(matches.petId1, petId1), eq(matches.petId2, petId2)),
+          and(eq(matches.petId1, petId2), eq(matches.petId2, petId1))
+        )
+      ));
+    return match || undefined;
+  }
+
+  async createMatch(insertMatch: InsertMatch): Promise<Match> {
+    const [match] = await db
+      .insert(matches)
+      .values(insertMatch)
+      .returning();
+    return match;
+  }
+
+  async getMatchesByUserId(userId: number): Promise<Match[]> {
+    return await db.select().from(matches).where(eq(matches.userId, userId)).orderBy(desc(matches.timestamp));
+  }
+
+  async getPotentialMatches(userId: number): Promise<Pet[]> {
+    // Get pets that haven't been swiped on yet
+    const userMatches = await this.getMatchesByUserId(userId);
+    const swipedPetIds = userMatches.map(match => [match.petId1, match.petId2]).flat();
+    const userPets = await this.getPetsByUserId(userId);
+    const userPetIds = userPets.map(pet => pet.id);
+    
+    const excludedIds = [...swipedPetIds, ...userPetIds];
+    
+    if (excludedIds.length === 0) {
+      return await this.getPublicPets();
+    }
+    
+    return await db.select().from(pets)
+      .where(and(
+        eq(pets.isPublic, true),
+        excludedIds.length > 0 ? sql`${pets.id} NOT IN (${sql.join(excludedIds.map(id => sql`${id}`), sql`, `)})` : sql`1=1`
+      ));
+  }
+}
+
+// Use DatabaseStorage for PostgreSQL persistence
+export const storage = new DatabaseStorage();
