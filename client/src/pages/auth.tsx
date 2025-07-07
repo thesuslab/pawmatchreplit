@@ -16,6 +16,7 @@ export default function Auth({ onLogin }: AuthProps) {
   const { toast } = useToast();
 
   const [formData, setFormData] = useState({
+    name: "",
     email: "",
     password: "",
     username: "",
@@ -29,7 +30,20 @@ export default function Auth({ onLogin }: AuthProps) {
 
     try {
       const endpoint = isLogin ? "/api/auth/login" : "/api/auth/register";
-      const response = await apiRequest("POST", endpoint, formData);
+      // For login, only send email and password
+      // For register, send the complete form data including name
+      const payload = isLogin 
+        ? { email: formData.email, password: formData.password }
+        : { 
+            name: formData.name,
+            email: formData.email, 
+            password: formData.password,
+            username: formData.username || null,
+            firstName: formData.firstName || null,
+            lastName: formData.lastName || null
+          };
+      
+      const response = await apiRequest("POST", endpoint, payload);
       const data = await response.json();
 
       localStorage.setItem('user', JSON.stringify(data.user));
@@ -67,34 +81,41 @@ export default function Auth({ onLogin }: AuthProps) {
           <form onSubmit={handleSubmit} className="space-y-4">
             {!isLogin && (
               <>
+                <div>
+                  <Label htmlFor="name">Full Name</Label>
+                  <Input
+                    id="name"
+                    type="text"
+                    required
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  />
+                </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <Label htmlFor="firstName">First Name</Label>
+                    <Label htmlFor="firstName">First Name (Optional)</Label>
                     <Input
                       id="firstName"
                       type="text"
-                      required
                       value={formData.firstName}
                       onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
                     />
                   </div>
                   <div>
-                    <Label htmlFor="lastName">Last Name</Label>
+                    <Label htmlFor="lastName">Last Name (Optional)</Label>
                     <Input
                       id="lastName"
                       type="text"
-                      required
                       value={formData.lastName}
                       onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
                     />
                   </div>
                 </div>
                 <div>
-                  <Label htmlFor="username">Username</Label>
+                  <Label htmlFor="username">Username (Optional)</Label>
                   <Input
                     id="username"
                     type="text"
-                    required
                     value={formData.username}
                     onChange={(e) => setFormData({ ...formData, username: e.target.value })}
                   />

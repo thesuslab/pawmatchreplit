@@ -74,7 +74,7 @@ app.use((req, res, next) => {
         await seedDatabase();
         log("Database seeded successfully");
       } catch (error) {
-        log("Database seeding failed:", error);
+        log("Database seeding failed: " + String(error));
       }
     }
   });
