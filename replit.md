@@ -139,6 +139,19 @@ Changelog:
   * Create post functionality with photo uploads
   * Updated navigation to include matching features
   * Environment configuration for upload limits
+- July 07, 2025. Added comprehensive medical records system:
+  * Complete medical record tracking with CRUD operations
+  * Vaccination schedules and appointment management
+  * Prescription tracking with detailed medication information
+  * Medical record categorization (vaccinations, surgeries, medications)
+  * Integration with veterinary clinic database compatibility
+- July 07, 2025. Integrated Google Gemini AI for pet care:
+  * AI-powered training plans based on breed and age
+  * Personalized breeding advice and health screening recommendations
+  * Daily care guidelines with nutrition and exercise suggestions
+  * Medical recommendations with vaccination schedules
+  * Full schema compatibility with veterinary database fields
+  * Support for appointment references and veterinarian assignments
 ```
 
 ## User Preferences

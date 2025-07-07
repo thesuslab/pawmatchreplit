@@ -40,6 +40,9 @@ export default function MedicalRecordModal({ isOpen, onClose, petId, userId }: M
       instructions: string;
     }>,
     attachments: [] as string[],
+    appointmentId: undefined as number | undefined,
+    veterinarianId: undefined as number | undefined,
+    isCompleted: false,
   });
 
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -84,6 +87,9 @@ export default function MedicalRecordModal({ isOpen, onClose, petId, userId }: M
       nextDue: undefined,
       prescriptions: [],
       attachments: [],
+      appointmentId: undefined,
+      veterinarianId: undefined,
+      isCompleted: false,
     });
   };
 

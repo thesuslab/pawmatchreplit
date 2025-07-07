@@ -77,7 +77,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/pets", async (req, res) => {
     try {
-      const petData = insertPetSchema.parse(req.body);
+      // Map userId to ownerId for schema compatibility
+      const { userId, ...restData } = req.body;
+      const petData = insertPetSchema.parse({
+        ...restData,
+        ownerId: userId, // Map userId to ownerId as per schema
+        userId: userId, // Keep userId for backwards compatibility
+      });
+      
       const pet = await storage.createPet(petData);
       
       // Generate AI-powered care recommendations
