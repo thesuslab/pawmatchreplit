@@ -81,7 +81,14 @@ export default function AddPetModal({ isOpen, onClose, userId }: AddPetModalProp
       });
       return;
     }
-    createPetMutation.mutate(formData);
+    // Map userId to ownerId for compatibility with seed data
+    const petData = {
+      ...formData,
+      userId: userId,
+      ownerId: userId,
+      age: parseInt(formData.age) || 0
+    };
+    createPetMutation.mutate(petData);
   };
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {

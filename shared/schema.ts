@@ -4,24 +4,44 @@ import { z } from "zod";
 
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
-  username: text("username").notNull().unique(),
+  name: text("name").notNull(),
+  username: text("username").unique(),
   email: text("email").notNull().unique(),
   password: text("password").notNull(),
-  firstName: text("first_name").notNull(),
-  lastName: text("last_name").notNull(),
+  firstName: text("first_name"),
+  lastName: text("last_name"),
+  role: text("role").default("client"), // admin, veterinarian, staff, client
+  phone: text("phone"),
+  department: text("department"),
+  specialization: text("specialization"),
+  avatar: text("avatar"),
+  bio: text("bio"),
+  location: text("location"),
+  isActive: boolean("is_active").default(true),
 });
 
 export const pets = pgTable("pets", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id").notNull(),
+  ownerId: integer("owner_id").notNull(), // Compatible with seed data
+  userId: integer("user_id"), // Keep for backwards compatibility
   name: text("name").notNull(),
+  species: text("species"), // Dog, Cat, etc from seed data
   breed: text("breed").notNull(),
   age: integer("age").notNull(),
+  weight: text("weight"), // From seed data
+  color: text("color"), // From seed data
   gender: text("gender").notNull(),
   bio: text("bio"),
   isPublic: boolean("is_public").default(true),
   profileImage: text("profile_image"),
+  avatar: text("avatar"), // Compatible with seed data
   photos: text("photos").array().default([]),
+  microchipId: text("microchip_id"), // From seed data
+  nextVaccination: timestamp("next_vaccination"), // From seed data
+  lastCheckup: timestamp("last_checkup"), // From seed data
+  lastVisit: timestamp("last_visit"), // From seed data
+  healthTips: text("health_tips").array().default([]), // From seed data
+  dietRecommendations: text("diet_recommendations"), // From seed data
 });
 
 export const posts = pgTable("posts", {
@@ -39,10 +59,19 @@ export const posts = pgTable("posts", {
 export const medicalRecords = pgTable("medical_records", {
   id: serial("id").primaryKey(),
   petId: integer("pet_id").notNull(),
-  recordType: text("record_type").notNull(), // vaccination, checkup, medication, etc.
+  appointmentId: integer("appointment_id"), // From seed data
+  veterinarianId: integer("veterinarian_id"), // From seed data
   title: text("title").notNull(),
   description: text("description"),
+  diagnosis: text("diagnosis"), // From seed data
+  treatment: text("treatment"), // From seed data
+  notes: text("notes"), // From seed data
+  cost: text("cost"), // From seed data
+  attachments: text("attachments").array().default([]), // From seed data
+  prescriptions: text("prescriptions"), // JSON string from seed data
   date: timestamp("date").notNull(),
+  recordType: text("record_type").notNull(), // vaccination, checkup, surgery, medication
+  type: text("type"), // wellness, surgery from seed data
   nextDue: timestamp("next_due"),
   isCompleted: boolean("is_completed").default(false),
 });

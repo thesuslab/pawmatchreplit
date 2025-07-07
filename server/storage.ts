@@ -108,7 +108,21 @@ export class MemStorage implements IStorage {
 
   async createUser(insertUser: InsertUser): Promise<User> {
     const id = this.currentUserId++;
-    const user: User = { ...insertUser, id };
+    const user: User = { 
+      ...insertUser, 
+      id,
+      username: insertUser.username || null,
+      firstName: insertUser.firstName || null,
+      lastName: insertUser.lastName || null,
+      role: insertUser.role || "client",
+      phone: insertUser.phone || null,
+      department: insertUser.department || null,
+      specialization: insertUser.specialization || null,
+      avatar: insertUser.avatar || null,
+      bio: insertUser.bio || null,
+      location: insertUser.location || null,
+      isActive: insertUser.isActive ?? true
+    };
     this.users.set(id, user);
     return user;
   }
@@ -119,7 +133,7 @@ export class MemStorage implements IStorage {
   }
 
   async getPetsByUserId(userId: number): Promise<Pet[]> {
-    return Array.from(this.pets.values()).filter(pet => pet.userId === userId);
+    return Array.from(this.pets.values()).filter(pet => pet.userId === userId || pet.ownerId === userId);
   }
 
   async createPet(insertPet: InsertPet): Promise<Pet> {
@@ -127,10 +141,22 @@ export class MemStorage implements IStorage {
     const pet: Pet = { 
       ...insertPet, 
       id,
+      ownerId: insertPet.ownerId || insertPet.userId || 0,
+      userId: insertPet.userId || null,
+      species: insertPet.species || null,
+      weight: insertPet.weight || null,
+      color: insertPet.color || null,
       bio: insertPet.bio || null,
       isPublic: insertPet.isPublic ?? true,
       profileImage: insertPet.profileImage || null,
-      photos: insertPet.photos || []
+      avatar: insertPet.avatar || null,
+      photos: insertPet.photos || [],
+      microchipId: insertPet.microchipId || null,
+      nextVaccination: insertPet.nextVaccination || null,
+      lastCheckup: insertPet.lastCheckup || null,
+      lastVisit: insertPet.lastVisit || null,
+      healthTips: insertPet.healthTips || [],
+      dietRecommendations: insertPet.dietRecommendations || null
     };
     this.pets.set(id, pet);
     return pet;
@@ -208,7 +234,16 @@ export class MemStorage implements IStorage {
     const record: MedicalRecord = { 
       ...insertRecord, 
       id,
+      appointmentId: insertRecord.appointmentId || null,
+      veterinarianId: insertRecord.veterinarianId || null,
       description: insertRecord.description || null,
+      diagnosis: insertRecord.diagnosis || null,
+      treatment: insertRecord.treatment || null,
+      notes: insertRecord.notes || null,
+      cost: insertRecord.cost || null,
+      attachments: insertRecord.attachments || [],
+      prescriptions: insertRecord.prescriptions || null,
+      type: insertRecord.type || null,
       nextDue: insertRecord.nextDue || null,
       isCompleted: insertRecord.isCompleted ?? false
     };
