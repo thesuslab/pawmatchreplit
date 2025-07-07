@@ -3,7 +3,8 @@ import { useState } from "react";
 import BottomNavigation from "@/components/bottom-navigation";
 import AddPetModal from "@/components/add-pet-modal";
 import MedicalRecordsTab from "@/components/medical-records-tab";
-import { Settings, Plus, Grid3X3, Heart, FileText } from "lucide-react";
+import AICareTab from "@/components/ai-care-tab";
+import { Settings, Plus, Grid3X3, Heart, FileText, Bot } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -80,7 +81,7 @@ export default function Profile({ user }: ProfileProps) {
       {/* Pet Management Tabs */}
       <div className="border-t border-gray-200">
         <Tabs defaultValue="pets" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="pets" className="flex items-center space-x-2">
               <Grid3X3 className="w-4 h-4" />
               <span>My Pets</span>
@@ -88,6 +89,10 @@ export default function Profile({ user }: ProfileProps) {
             <TabsTrigger value="medical" className="flex items-center space-x-2">
               <Heart className="w-4 h-4" />
               <span>Medical Records</span>
+            </TabsTrigger>
+            <TabsTrigger value="care" className="flex items-center space-x-2">
+              <Bot className="w-4 h-4" />
+              <span>AI Care</span>
             </TabsTrigger>
           </TabsList>
 
@@ -155,6 +160,30 @@ export default function Profile({ user }: ProfileProps) {
                 <Heart className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                 <p className="text-gray-500">No pets available</p>
                 <p className="text-sm text-gray-400 mt-1">Add a pet first to manage medical records</p>
+              </div>
+            )}
+          </TabsContent>
+          
+          <TabsContent value="care" className="mt-0">
+            {selectedPet ? (
+              <div className="p-4">
+                <div className="mb-4">
+                  <h3 className="text-lg font-semibold">AI Care Assistant for {selectedPet.name}</h3>
+                  <p className="text-gray-600">{selectedPet.breed} • {selectedPet.age} years old</p>
+                </div>
+                <AICareTab pet={selectedPet} userId={user.id} />
+              </div>
+            ) : userPets.length > 0 ? (
+              <div className="p-8 text-center">
+                <Bot className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-500">Select a pet to access AI care recommendations</p>
+                <p className="text-sm text-gray-400 mt-1">Choose a pet from the "My Pets" tab first</p>
+              </div>
+            ) : (
+              <div className="p-8 text-center">
+                <Heart className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-500">No pets available</p>
+                <p className="text-sm text-gray-400 mt-1">Add a pet first to get AI care recommendations</p>
               </div>
             )}
           </TabsContent>

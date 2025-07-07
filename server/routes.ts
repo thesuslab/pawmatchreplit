@@ -279,10 +279,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/medical-records", async (req, res) => {
     try {
-      const recordData = insertMedicalRecordSchema.parse(req.body);
+      // Parse and convert date strings to Date objects
+      const { date, nextDue, ...restData } = req.body;
+      const recordData = insertMedicalRecordSchema.parse({
+        ...restData,
+        date: date ? new Date(date) : new Date(),
+        nextDue: nextDue ? new Date(nextDue) : undefined
+      });
       const record = await storage.createMedicalRecord(recordData);
       res.json(record);
     } catch (error) {
+      console.error("Medical record creation error:", error);
       res.status(400).json({ message: "Invalid medical record data", error });
     }
   });
@@ -403,13 +410,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/medical-records", async (req, res) => {
+  // Generate AI recommendations for a pet
+  app.post("/api/ai/generate-recommendations", async (req, res) => {
     try {
-      const recordData = insertMedicalRecordSchema.parse(req.body);
-      const record = await storage.createMedicalRecord(recordData);
-      res.json(record);
+      const { petId, name, breed, age, gender, species } = req.body;
+      
+      const { generatePetCareRecommendations } = await import("./gemini");
+      const recommendations = await generatePetCareRecommendations(name, breed, age, gender, species);
+      
+      res.json(recommendations);
     } catch (error) {
-      res.status(400).json({ message: "Invalid medical record data", error });
+      console.error("AI recommendations generation error:", error);
+      res.status(500).json({ message: "Failed to generate AI recommendations", error });
+    }
+  });
+
+  // Chat with AI for pet care
+  app.post("/api/ai/chat", async (req, res) => {
+    try {
+      const { message, petName, petBreed, petAge, petSpecies } = req.body;
+      
+      const systemPrompt = `You are a veterinary AI assistant for ${petName}, a ${petAge}-year-old ${petBreed} ${petSpecies || 'dog'}. 
+      Provide helpful, accurate advice about pet care, health, training, and nutrition. 
+      Always recommend consulting with a veterinarian for serious health concerns.`;
+      
+      const { GoogleGenAI } = await import("@google/genai");
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
+      const response = await ai.models.generateContent({
+        model: "gemini-2.5-flash",
+        config: {
+          systemInstruction: systemPrompt,
+        },
+        contents: message,
+      });
+      
+      res.json({ response: response.text || "I'm sorry, I couldn't process that request." });
+    } catch (error) {
+      console.error("AI chat error:", error);
+      res.status(500).json({ message: "Failed to get AI response", error });
     }
   });
 
