@@ -1,8 +1,8 @@
 import { 
-  users, pets, posts, medicalRecords, likes, follows, comments,
-  type User, type Pet, type Post, type MedicalRecord, type Like, type Follow, type Comment,
+  users, pets, posts, medicalRecords, likes, follows, comments, matches,
+  type User, type Pet, type Post, type MedicalRecord, type Like, type Follow, type Comment, type Match,
   type InsertUser, type InsertPet, type InsertPost, type InsertMedicalRecord, 
-  type InsertLike, type InsertFollow, type InsertComment
+  type InsertLike, type InsertFollow, type InsertComment, type InsertMatch
 } from "@shared/schema";
 
 export interface IStorage {
@@ -48,6 +48,12 @@ export interface IStorage {
   getComment(id: number): Promise<Comment | undefined>;
   getCommentsByPostId(postId: number): Promise<Comment[]>;
   createComment(comment: InsertComment): Promise<Comment>;
+
+  // Match operations
+  getMatch(userId: number, petId1: number, petId2: number): Promise<Match | undefined>;
+  createMatch(match: InsertMatch): Promise<Match>;
+  getMatchesByUserId(userId: number): Promise<Match[]>;
+  getPotentialMatches(userId: number): Promise<Pet[]>;
 }
 
 export class MemStorage implements IStorage {
@@ -58,6 +64,7 @@ export class MemStorage implements IStorage {
   private likes: Map<string, Like>;
   private follows: Map<string, Follow>;
   private comments: Map<number, Comment>;
+  private matches: Map<string, Match>;
   private currentUserId: number;
   private currentPetId: number;
   private currentPostId: number;
@@ -65,6 +72,7 @@ export class MemStorage implements IStorage {
   private currentLikeId: number;
   private currentFollowId: number;
   private currentCommentId: number;
+  private currentMatchId: number;
 
   constructor() {
     this.users = new Map();
@@ -74,6 +82,7 @@ export class MemStorage implements IStorage {
     this.likes = new Map();
     this.follows = new Map();
     this.comments = new Map();
+    this.matches = new Map();
     this.currentUserId = 1;
     this.currentPetId = 1;
     this.currentPostId = 1;
@@ -81,6 +90,7 @@ export class MemStorage implements IStorage {
     this.currentLikeId = 1;
     this.currentFollowId = 1;
     this.currentCommentId = 1;
+    this.currentMatchId = 1;
   }
 
   // User operations
@@ -114,7 +124,14 @@ export class MemStorage implements IStorage {
 
   async createPet(insertPet: InsertPet): Promise<Pet> {
     const id = this.currentPetId++;
-    const pet: Pet = { ...insertPet, id };
+    const pet: Pet = { 
+      ...insertPet, 
+      id,
+      bio: insertPet.bio || null,
+      isPublic: insertPet.isPublic ?? true,
+      profileImage: insertPet.profileImage || null,
+      photos: insertPet.photos || []
+    };
     this.pets.set(id, pet);
     return pet;
   }
@@ -159,6 +176,8 @@ export class MemStorage implements IStorage {
     const post: Post = { 
       ...insertPost, 
       id, 
+      caption: insertPost.caption || null,
+      location: insertPost.location || null,
       likesCount: 0, 
       commentsCount: 0, 
       timestamp: new Date() 
@@ -186,7 +205,13 @@ export class MemStorage implements IStorage {
 
   async createMedicalRecord(insertRecord: InsertMedicalRecord): Promise<MedicalRecord> {
     const id = this.currentMedicalRecordId++;
-    const record: MedicalRecord = { ...insertRecord, id };
+    const record: MedicalRecord = { 
+      ...insertRecord, 
+      id,
+      description: insertRecord.description || null,
+      nextDue: insertRecord.nextDue || null,
+      isCompleted: insertRecord.isCompleted ?? false
+    };
     this.medicalRecords.set(id, record);
     return record;
   }
@@ -277,6 +302,52 @@ export class MemStorage implements IStorage {
     }
     
     return comment;
+  }
+
+  // Match operations
+  async getMatch(userId: number, petId1: number, petId2: number): Promise<Match | undefined> {
+    const key = `${userId}-${Math.min(petId1, petId2)}-${Math.max(petId1, petId2)}`;
+    return this.matches.get(key);
+  }
+
+  async createMatch(insertMatch: InsertMatch): Promise<Match> {
+    const id = this.currentMatchId++;
+    const match: Match = { 
+      ...insertMatch, 
+      id, 
+      timestamp: new Date(),
+      isMatch: insertMatch.isMatch ?? false
+    };
+    const key = `${match.userId}-${Math.min(match.petId1, match.petId2)}-${Math.max(match.petId1, match.petId2)}`;
+    this.matches.set(key, match);
+    return match;
+  }
+
+  async getMatchesByUserId(userId: number): Promise<Match[]> {
+    return Array.from(this.matches.values()).filter(match => match.userId === userId);
+  }
+
+  async getPotentialMatches(userId: number): Promise<Pet[]> {
+    const userPets = await this.getPetsByUserId(userId);
+    const userPetIds = userPets.map(pet => pet.id);
+    
+    // Get all public pets that don't belong to the current user
+    const publicPets = await this.getPublicPets();
+    const potentialMatches = publicPets.filter(pet => !userPetIds.includes(pet.id));
+    
+    // Filter out pets that have already been swiped on
+    const existingMatches = await this.getMatchesByUserId(userId);
+    const swipedPetIds = new Set();
+    
+    existingMatches.forEach(match => {
+      if (userPetIds.includes(match.petId1)) {
+        swipedPetIds.add(match.petId2);
+      } else {
+        swipedPetIds.add(match.petId1);
+      }
+    });
+    
+    return potentialMatches.filter(pet => !swipedPetIds.has(pet.id));
   }
 }
 

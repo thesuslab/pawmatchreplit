@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { 
   insertUserSchema, insertPetSchema, insertPostSchema, insertMedicalRecordSchema,
-  insertLikeSchema, insertFollowSchema, insertCommentSchema
+  insertLikeSchema, insertFollowSchema, insertCommentSchema, insertMatchSchema
 } from "@shared/schema";
 import { z } from "zod";
 
@@ -268,6 +268,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(comment);
     } catch (error) {
       res.status(400).json({ message: "Invalid comment data", error });
+    }
+  });
+
+  // Match routes
+  app.get("/api/matches/potential/:userId", async (req, res) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      const potentialMatches = await storage.getPotentialMatches(userId);
+      res.json(potentialMatches);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch potential matches", error });
+    }
+  });
+
+  app.post("/api/matches", async (req, res) => {
+    try {
+      const matchData = insertMatchSchema.parse(req.body);
+      const match = await storage.createMatch(matchData);
+      
+      // Check if it's a mutual match
+      const reverseMatch = await storage.getMatch(
+        matchData.userId, 
+        matchData.petId2, 
+        matchData.petId1
+      );
+      
+      if (reverseMatch && reverseMatch.swipeDirection === "right" && matchData.swipeDirection === "right") {
+        // It's a mutual match!
+        await storage.createMatch({
+          ...matchData,
+          isMatch: true
+        });
+      }
+      
+      res.json(match);
+    } catch (error) {
+      res.status(400).json({ message: "Invalid match data", error });
+    }
+  });
+
+  app.get("/api/matches/user/:userId", async (req, res) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      const matches = await storage.getMatchesByUserId(userId);
+      const mutualMatches = matches.filter(match => match.isMatch);
+      
+      // Enrich with pet data
+      const enrichedMatches = await Promise.all(mutualMatches.map(async (match) => {
+        const pet1 = await storage.getPet(match.petId1);
+        const pet2 = await storage.getPet(match.petId2);
+        return {
+          ...match,
+          pet1,
+          pet2
+        };
+      }));
+      
+      res.json(enrichedMatches);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch matches", error });
     }
   });
 

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Camera, X } from "lucide-react";
+import { Camera, X, Plus, Trash2 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
@@ -26,7 +26,11 @@ export default function AddPetModal({ isOpen, onClose, userId }: AddPetModalProp
     bio: "",
     isPublic: true,
     profileImage: "",
+    photos: [] as string[],
   });
+  
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const MAX_PHOTOS = 3; // Maximum photos per pet as per .env configuration
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -55,6 +59,7 @@ export default function AddPetModal({ isOpen, onClose, userId }: AddPetModalProp
         bio: "",
         isPublic: true,
         profileImage: "",
+        photos: [],
       });
     },
     onError: (error: any) => {
@@ -79,6 +84,41 @@ export default function AddPetModal({ isOpen, onClose, userId }: AddPetModalProp
     createPetMutation.mutate(formData);
   };
 
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files) return;
+
+    const newPhotos = [...formData.photos];
+    
+    Array.from(files).forEach((file) => {
+      if (newPhotos.length >= MAX_PHOTOS) {
+        toast({
+          title: "Photo limit reached",
+          description: `You can only upload up to ${MAX_PHOTOS} photos per pet`,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const result = e.target?.result as string;
+        setFormData(prev => ({
+          ...prev,
+          photos: [...prev.photos, result]
+        }));
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const removePhoto = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      photos: prev.photos.filter((_, i) => i !== index)
+    }));
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
@@ -92,14 +132,50 @@ export default function AddPetModal({ isOpen, onClose, userId }: AddPetModalProp
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Pet Photo Upload */}
-          <div className="flex flex-col items-center space-y-2">
-            <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center border-2 border-dashed border-gray-300">
-              <Camera className="w-8 h-8 text-gray-400" />
+          {/* Pet Photos Upload */}
+          <div className="space-y-3">
+            <Label>Pet Photos (Max {MAX_PHOTOS})</Label>
+            
+            {/* Photo Grid */}
+            <div className="grid grid-cols-3 gap-3">
+              {formData.photos.map((photo, index) => (
+                <div key={index} className="relative aspect-square bg-gray-100 rounded-lg overflow-hidden">
+                  <img src={photo} alt={`Pet photo ${index + 1}`} className="w-full h-full object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => removePhoto(index)}
+                    className="absolute top-1 right-1 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-xs hover:bg-red-600"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </button>
+                </div>
+              ))}
+              
+              {/* Add Photo Button */}
+              {formData.photos.length < MAX_PHOTOS && (
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="aspect-square bg-gray-100 rounded-lg flex flex-col items-center justify-center border-2 border-dashed border-gray-300 hover:border-gray-400 transition-colors"
+                >
+                  <Plus className="w-6 h-6 text-gray-400" />
+                  <span className="text-xs text-gray-500 mt-1">Add Photo</span>
+                </button>
+              )}
             </div>
-            <button type="button" className="text-blue-600 text-sm font-medium">
-              Add Photo
-            </button>
+            
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={handleFileUpload}
+              className="hidden"
+            />
+            
+            <p className="text-xs text-gray-500">
+              {formData.photos.length}/{MAX_PHOTOS} photos uploaded
+            </p>
           </div>
 
           {/* Pet Name */}

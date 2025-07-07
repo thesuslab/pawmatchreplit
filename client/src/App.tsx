@@ -9,6 +9,8 @@ import Home from "@/pages/home";
 import Discover from "@/pages/discover";
 import Profile from "@/pages/profile";
 import Health from "@/pages/health";
+import Match from "@/pages/match";
+import Matches from "@/pages/matches";
 import Auth from "@/pages/auth";
 
 function Router() {
@@ -29,6 +31,8 @@ function Router() {
     <Switch>
       <Route path="/" component={() => <Home user={user} />} />
       <Route path="/discover" component={() => <Discover user={user} />} />
+      <Route path="/match" component={() => <Match user={user} />} />
+      <Route path="/matches" component={() => <Matches user={user} />} />
       <Route path="/profile" component={() => <Profile user={user} />} />
       <Route path="/health" component={() => <Health user={user} />} />
       <Route component={NotFound} />

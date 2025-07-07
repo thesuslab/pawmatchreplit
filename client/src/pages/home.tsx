@@ -4,7 +4,8 @@ import BottomNavigation from "@/components/bottom-navigation";
 import StoriesHighlights from "@/components/stories-highlights";
 import PetPost from "@/components/pet-post";
 import AddPetModal from "@/components/add-pet-modal";
-import { Heart, MessageCircle, Send } from "lucide-react";
+import CreatePostModal from "@/components/create-post-modal";
+import { Heart, MessageCircle, Send, Plus } from "lucide-react";
 
 interface HomeProps {
   user: any;
@@ -12,6 +13,7 @@ interface HomeProps {
 
 export default function Home({ user }: HomeProps) {
   const [showAddPetModal, setShowAddPetModal] = useState(false);
+  const [showCreatePostModal, setShowCreatePostModal] = useState(false);
 
   const { data: posts = [], isLoading } = useQuery({
     queryKey: ['/api/posts/feed', user.id],
@@ -75,15 +77,25 @@ export default function Home({ user }: HomeProps) {
         )}
       </div>
 
-      {/* Floating Add Button */}
-      <button
-        onClick={() => setShowAddPetModal(true)}
-        className="fixed bottom-24 right-4 w-14 h-14 bg-pink-500 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center z-40"
-      >
-        <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.94-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
-        </svg>
-      </button>
+      {/* Floating Add Buttons */}
+      <div className="fixed bottom-24 right-4 flex flex-col space-y-3 z-40">
+        <button
+          onClick={() => setShowCreatePostModal(true)}
+          className="w-14 h-14 bg-blue-500 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center"
+          title="Create Post"
+        >
+          <Plus className="w-6 h-6" />
+        </button>
+        <button
+          onClick={() => setShowAddPetModal(true)}
+          className="w-14 h-14 bg-pink-500 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center"
+          title="Add Pet"
+        >
+          <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.94-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
+          </svg>
+        </button>
+      </div>
 
       <BottomNavigation currentPage="home" />
 
@@ -91,6 +103,14 @@ export default function Home({ user }: HomeProps) {
         <AddPetModal
           isOpen={showAddPetModal}
           onClose={() => setShowAddPetModal(false)}
+          userId={user.id}
+        />
+      )}
+
+      {showCreatePostModal && (
+        <CreatePostModal
+          isOpen={showCreatePostModal}
+          onClose={() => setShowCreatePostModal(false)}
           userId={user.id}
         />
       )}

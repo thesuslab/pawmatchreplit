@@ -21,6 +21,7 @@ export const pets = pgTable("pets", {
   bio: text("bio"),
   isPublic: boolean("is_public").default(true),
   profileImage: text("profile_image"),
+  photos: text("photos").array().default([]),
 });
 
 export const posts = pgTable("posts", {
@@ -56,6 +57,16 @@ export const follows = pgTable("follows", {
   id: serial("id").primaryKey(),
   followerId: integer("follower_id").notNull(),
   followedPetId: integer("followed_pet_id").notNull(),
+});
+
+export const matches = pgTable("matches", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  petId1: integer("pet_id_1").notNull(),
+  petId2: integer("pet_id_2").notNull(),
+  isMatch: boolean("is_match").default(false),
+  swipeDirection: text("swipe_direction").notNull(), // "left" or "right"
+  timestamp: timestamp("timestamp").defaultNow(),
 });
 
 export const comments = pgTable("comments", {
@@ -99,6 +110,11 @@ export const insertCommentSchema = createInsertSchema(comments).omit({
   timestamp: true,
 });
 
+export const insertMatchSchema = createInsertSchema(matches).omit({
+  id: true,
+  timestamp: true,
+});
+
 // Types
 export type User = typeof users.$inferSelect;
 export type Pet = typeof pets.$inferSelect;
@@ -107,6 +123,7 @@ export type MedicalRecord = typeof medicalRecords.$inferSelect;
 export type Like = typeof likes.$inferSelect;
 export type Follow = typeof follows.$inferSelect;
 export type Comment = typeof comments.$inferSelect;
+export type Match = typeof matches.$inferSelect;
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type InsertPet = z.infer<typeof insertPetSchema>;
@@ -115,3 +132,4 @@ export type InsertMedicalRecord = z.infer<typeof insertMedicalRecordSchema>;
 export type InsertLike = z.infer<typeof insertLikeSchema>;
 export type InsertFollow = z.infer<typeof insertFollowSchema>;
 export type InsertComment = z.infer<typeof insertCommentSchema>;
+export type InsertMatch = z.infer<typeof insertMatchSchema>;
