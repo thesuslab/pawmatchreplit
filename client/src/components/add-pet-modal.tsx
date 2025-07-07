@@ -10,6 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { Camera, X, Plus, Trash2 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import AIRecommendationsModal from "@/components/ai-recommendations-modal";
 
 interface AddPetModalProps {
   isOpen: boolean;
@@ -31,6 +32,8 @@ export default function AddPetModal({ isOpen, onClose, userId }: AddPetModalProp
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const MAX_PHOTOS = 3; // Maximum photos per pet as per .env configuration
+  const [showRecommendations, setShowRecommendations] = useState(false);
+  const [aiRecommendations, setAiRecommendations] = useState<any>(null);
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -44,11 +47,18 @@ export default function AddPetModal({ isOpen, onClose, userId }: AddPetModalProp
       });
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       toast({
         title: "Success!",
-        description: "Pet profile created successfully",
+        description: "Pet profile created successfully! AI recommendations generated.",
       });
+      
+      // Check if AI recommendations were generated
+      if (data.aiRecommendations) {
+        setAiRecommendations(data.aiRecommendations);
+        setShowRecommendations(true);
+      }
+      
       queryClient.invalidateQueries({ queryKey: ['/api/pets/user', userId] });
       onClose();
       setFormData({
@@ -127,6 +137,7 @@ export default function AddPetModal({ isOpen, onClose, userId }: AddPetModalProp
   };
 
   return (
+    <>
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
@@ -274,5 +285,16 @@ export default function AddPetModal({ isOpen, onClose, userId }: AddPetModalProp
         </form>
       </DialogContent>
     </Dialog>
+
+    {/* AI Recommendations Modal */}
+    {showRecommendations && aiRecommendations && (
+      <AIRecommendationsModal
+        isOpen={showRecommendations}
+        onClose={() => setShowRecommendations(false)}
+        petName={formData.name}
+        recommendations={aiRecommendations}
+      />
+    )}
+    </>
   );
 }

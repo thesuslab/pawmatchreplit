@@ -102,6 +102,8 @@ export default function MedicalRecordModal({ isOpen, onClose, petId, userId }: M
     const recordData = {
       ...formData,
       petId,
+      date: new Date(formData.date), // Convert to Date object
+      nextDue: formData.nextDue ? new Date(formData.nextDue) : null,
       prescriptions: formData.prescriptions.length > 0 ? JSON.stringify(formData.prescriptions) : null,
       cost: formData.cost || null,
       diagnosis: formData.diagnosis || null,

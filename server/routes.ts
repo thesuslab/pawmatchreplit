@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { generatePetCareRecommendations } from "./gemini";
 import { 
   insertUserSchema, insertPetSchema, insertPostSchema, insertMedicalRecordSchema,
   insertLikeSchema, insertFollowSchema, insertCommentSchema, insertMatchSchema
@@ -78,9 +79,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const petData = insertPetSchema.parse(req.body);
       const pet = await storage.createPet(petData);
-      res.json(pet);
+      
+      // Generate AI-powered care recommendations
+      try {
+        const recommendations = await generatePetCareRecommendations(
+          pet.name,
+          pet.breed,
+          pet.age,
+          pet.gender,
+          pet.species || "dog"
+        );
+        
+        // Store recommendations as health tips
+        const updatedPet = await storage.updatePet(pet.id, {
+          healthTips: [
+            `Training: ${recommendations.trainingPlan.basicCommands.join(', ')}`,
+            `Exercise: ${recommendations.careGuidelines.exerciseRequirements}`,
+            `Nutrition: ${recommendations.careGuidelines.nutritionTips.join(', ')}`,
+            `Health monitoring: ${recommendations.medicalRecommendations.commonHealthIssues.join(', ')}`,
+            `Breeding age: ${recommendations.breedingAdvice.optimalAge}`
+          ],
+          dietRecommendations: recommendations.careGuidelines.nutritionTips.join('; ')
+        });
+        
+        res.json({ ...updatedPet, aiRecommendations: recommendations });
+      } catch (aiError) {
+        console.error("AI recommendations failed:", aiError);
+        res.json(pet); // Return pet without AI recommendations if AI fails
+      }
     } catch (error) {
       res.status(400).json({ message: "Invalid pet data", error });
+    }
+  });
+
+  // Get AI care recommendations for existing pet
+  app.get("/api/pets/:id/recommendations", async (req, res) => {
+    try {
+      const petId = parseInt(req.params.id);
+      const pet = await storage.getPet(petId);
+      
+      if (!pet) {
+        return res.status(404).json({ message: "Pet not found" });
+      }
+      
+      const recommendations = await generatePetCareRecommendations(
+        pet.name,
+        pet.breed,
+        pet.age,
+        pet.gender,
+        pet.species || "dog"
+      );
+      
+      res.json(recommendations);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to generate recommendations", error });
     }
   });
 
