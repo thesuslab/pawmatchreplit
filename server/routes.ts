@@ -333,6 +333,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Medical record routes
+  app.get("/api/medical-records/pet/:petId", async (req, res) => {
+    try {
+      const petId = parseInt(req.params.petId);
+      const records = await storage.getMedicalRecordsByPetId(petId);
+      res.json(records);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch medical records", error });
+    }
+  });
+
+  app.post("/api/medical-records", async (req, res) => {
+    try {
+      const recordData = insertMedicalRecordSchema.parse(req.body);
+      const record = await storage.createMedicalRecord(recordData);
+      res.json(record);
+    } catch (error) {
+      res.status(400).json({ message: "Invalid medical record data", error });
+    }
+  });
+
+  app.get("/api/medical-records/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const record = await storage.getMedicalRecord(id);
+      if (!record) {
+        return res.status(404).json({ message: "Medical record not found" });
+      }
+      res.json(record);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch medical record", error });
+    }
+  });
+
+  app.patch("/api/medical-records/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const updates = req.body;
+      const record = await storage.updateMedicalRecord(id, updates);
+      if (!record) {
+        return res.status(404).json({ message: "Medical record not found" });
+      }
+      res.json(record);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update medical record", error });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
