@@ -414,14 +414,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/ai/generate-recommendations", async (req, res) => {
     try {
       const { petId, name, breed, age, gender, species } = req.body;
-      
+      console.log('[AI] /api/ai/generate-recommendations input:', req.body);
       const { generatePetCareRecommendations } = await import("./gemini");
       const recommendations = await generatePetCareRecommendations(name, breed, age, gender, species);
-      
+      console.log('[AI] /api/ai/generate-recommendations output:', recommendations);
       res.json(recommendations);
     } catch (error) {
-      console.error("AI recommendations generation error:", error);
+      console.error('[AI] /api/ai/generate-recommendations error:', error);
       res.status(500).json({ message: "Failed to generate AI recommendations", error });
+    }
+  });
+
+  // Get AI recommendations for a pet (if cached or generated)
+  app.get("/api/ai/recommendations/:petId", async (req, res) => {
+    try {
+      const petId = parseInt(req.params.petId);
+      console.log('[AI] /api/ai/recommendations/:petId input:', petId);
+      // (You may want to add caching logic here)
+      const pet = await storage.getPet(petId);
+      if (!pet) {
+        return res.status(404).json({ message: "Pet not found" });
+      }
+      const { generatePetCareRecommendations } = await import("./gemini");
+      const recommendations = await generatePetCareRecommendations(
+        pet.name,
+        pet.breed,
+        pet.age,
+        pet.gender,
+        pet.species || "dog"
+      );
+      console.log('[AI] /api/ai/recommendations/:petId output:', recommendations);
+      res.json(recommendations);
+    } catch (error) {
+      console.error('[AI] /api/ai/recommendations/:petId error:', error);
+      res.status(500).json({ message: "Failed to generate recommendations", error });
     }
   });
 
@@ -429,11 +455,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/ai/chat", async (req, res) => {
     try {
       const { message, petName, petBreed, petAge, petSpecies } = req.body;
-      
+      console.log('[AI] /api/ai/chat input:', req.body);
       const systemPrompt = `You are a veterinary AI assistant for ${petName}, a ${petAge}-year-old ${petBreed} ${petSpecies || 'dog'}. 
       Provide helpful, accurate advice about pet care, health, training, and nutrition. 
       Always recommend consulting with a veterinarian for serious health concerns.`;
-      
       const { GoogleGenAI } = await import("@google/genai");
       const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
       const response = await ai.models.generateContent({
@@ -443,10 +468,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         },
         contents: message,
       });
-      
+      console.log('[AI] /api/ai/chat output:', response.text);
       res.json({ response: response.text || "I'm sorry, I couldn't process that request." });
     } catch (error) {
-      console.error("AI chat error:", error);
+      console.error('[AI] /api/ai/chat error:', error);
       res.status(500).json({ message: "Failed to get AI response", error });
     }
   });

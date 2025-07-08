@@ -83,7 +83,8 @@ Format the response as JSON with the exact structure:
     "preventiveCare": ["care1", "care2", ...]
   }
 }`;
-
+    console.log('[Gemini] generatePetCareRecommendations input:', { name, breed, age, gender, species });
+    console.log('[Gemini] prompt:', prompt);
     const response = await ai.models.generateContent({
       model: "gemini-2.5-pro",
       config: {
@@ -134,16 +135,15 @@ Format the response as JSON with the exact structure:
       },
       contents: prompt,
     });
-
-    const rawJson = response.text;
-    if (rawJson) {
-      const recommendations: PetCareRecommendations = JSON.parse(rawJson);
+    console.log('[Gemini] raw response:', response.text);
+    if (response.text) {
+      const recommendations: PetCareRecommendations = JSON.parse(response.text);
       return recommendations;
     } else {
       throw new Error("Empty response from Gemini API");
     }
   } catch (error) {
-    console.error("Failed to generate pet care recommendations:", error);
+    console.error('[Gemini] generatePetCareRecommendations error:', error);
     // Return fallback recommendations
     return {
       trainingPlan: {

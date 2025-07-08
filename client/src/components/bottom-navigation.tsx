@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { Home, Search, Heart, Activity, User } from "lucide-react";
+import { Home, Search, Heart, Stethoscope, User } from "lucide-react";
 
 interface BottomNavigationProps {
   currentPage: string;
@@ -30,20 +30,12 @@ export default function BottomNavigation({ currentPage }: BottomNavigationProps)
           </button>
         </Link>
         
-        <Link href="/match">
-          <button className={`flex flex-col items-center space-y-1 py-2 ${isActive("match") ? "text-gray-900" : "text-gray-500"}`}>
-            <Heart className="w-6 h-6" />
-            <span className="text-xs">Match</span>
+        <Link href="/care">
+          <button className={`flex flex-col items-center space-y-1 py-2 ${isActive("care") ? "text-gray-900" : "text-gray-500"}`}>
+            <Stethoscope className="w-6 h-6" />
+            <span className="text-xs">Care</span>
           </button>
         </Link>
-        
-        <Link href="/matches">
-          <button className={`flex flex-col items-center space-y-1 py-2 ${isActive("matches") ? "text-gray-900" : "text-gray-500"}`}>
-            <Activity className="w-6 h-6" />
-            <span className="text-xs">Matches</span>
-          </button>
-        </Link>
-        
         <Link href="/profile">
           <button className={`flex flex-col items-center space-y-1 py-2 ${isActive("profile") ? "text-gray-900" : "text-gray-500"}`}>
             <User className="w-6 h-6" />

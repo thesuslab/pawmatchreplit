@@ -64,12 +64,14 @@ app.use((req, res, next) => {
   const port = 5000;
   server.listen(port, async () => {
     log(`serving on port ${port}`);
+    log('APP is running on  http://localhost:5000')
     
     // Seed the database on startup in development
     if (app.get("env") === "development") {
       try {
-        await seedDatabase();
-        log("Database seeded successfully");
+        // await seedDatabase();
+        log("Database not seededsuccessfully");
+        // log("Database seeded successfully");
       } catch (error) {
         log("Database seeding failed: " + String(error));
       }
