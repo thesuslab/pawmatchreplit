@@ -7,6 +7,8 @@ import {
   insertLikeSchema, insertFollowSchema, insertCommentSchema, insertMatchSchema
 } from "@shared/schema";
 import { z } from "zod";
+import { sendMail } from "./index";
+import { registrationEmailTemplate, forgotPasswordEmailTemplate } from "./email-templates";
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -34,6 +36,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const user = await storage.createUser(userData);
+      // Send registration email
+      try {
+        await sendMail({
+          to: user.email,
+          subject: "Welcome to PawConnect!",
+          html: registrationEmailTemplate({ username: user.username || user.email }),
+        });
+      } catch (mailError) {
+        // Log but don't fail registration if email fails
+        console.error("Registration email failed:", mailError);
+      }
       res.json({ user: { ...user, password: undefined } });
     } catch (error) {
       res.status(400).json({ message: "Invalid user data", error });
@@ -52,6 +65,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ user: { ...user, password: undefined } });
     } catch (error) {
       res.status(400).json({ message: "Invalid login data", error });
+    }
+  });
+
+  // Password reset (scaffold)
+  app.post("/api/auth/forgot-password", async (req, res) => {
+    try {
+      const { email } = req.body;
+      const user = await storage.getUserByEmail(email);
+      if (!user) {
+        return res.status(404).json({ message: "No user with that email" });
+      }
+      // Generate a dummy reset link (replace with real token logic)
+      const resetLink = `http://localhost:5000/reset-password?email=${encodeURIComponent(email)}`;
+      await sendMail({
+        to: user.email,
+        subject: "Password Reset Request",
+        html: forgotPasswordEmailTemplate({ username: user.username || user.email, resetLink }),
+      });
+      res.json({ message: "Password reset email sent" });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to send password reset email", error });
     }
   });
 

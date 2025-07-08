@@ -4,13 +4,15 @@ import { Card, CardContent } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 import { useState } from 'react';
+import { useRoute, useLocation } from 'wouter';
 
 export default function PetProfilePage() {
+  const [match, params] = useRoute('/pet/:petId');
+  const [, navigate] = useLocation();
+  const petId = params?.petId;
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [isFollowing, setIsFollowing] = useState(false);
-
-  const petId = window.location.pathname.split('/pet/')[1];
 
   // Fetch pet info
   const { data: pet, isLoading: petLoading } = useQuery({

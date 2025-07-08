@@ -3,11 +3,19 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { seedDatabase } from "./seed";
 import 'dotenv/config';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import nodemailer from 'nodemailer';
+
+// These two lines are needed if you're using ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 const payloadLimit = process.env.PAYLOAD_LIMIT_MB ? `${process.env.PAYLOAD_LIMIT_MB}mb` : '2mb';
 app.use(express.json({ limit: payloadLimit }));
 app.use(express.urlencoded({ extended: false, limit: payloadLimit }));
+app.use(express.static(path.join(__dirname, '../client/dist')));
 
 app.use((req, res, next) => {
   const start = Date.now();
@@ -39,6 +47,25 @@ app.use((req, res, next) => {
   next();
 });
 
+export const mailTransporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST,
+  port: Number(process.env.SMTP_PORT),
+  secure: true,
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+  },
+});
+
+export async function sendMail({ to, subject, html }: { to: string, subject: string, html: string }) {
+  return mailTransporter.sendMail({
+    from: process.env.SMTP_USER,
+    to,
+    subject,
+    html,
+  });
+}
+
 (async () => {
   const server = await registerRoutes(app);
 
@@ -58,6 +85,13 @@ app.use((req, res, next) => {
   } else {
     serveStatic(app);
   }
+
+  // Serve index.html for all non-API routes
+  app.get('*', (req, res) => {
+    // Only serve index.html for non-API routes
+    if (req.path.startsWith('/api')) return res.status(404).json({ message: 'API route not found' });
+    res.sendFile(path.join(__dirname, '../client/dist/index.html'));
+  });
 
   // ALWAYS serve the app on port 5000
   // this serves both the API and the client.
