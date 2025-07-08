@@ -4,7 +4,8 @@ import BottomNavigation from "@/components/bottom-navigation";
 import AddPetModal from "@/components/add-pet-modal";
 import MedicalRecordsTab from "@/components/medical-records-tab";
 import AICareTab from "@/components/ai-care-tab";
-import { Settings, Plus, Grid3X3, Heart, FileText, Bot } from "lucide-react";
+import EditPetModal from '@/components/edit-pet-modal';
+import { Settings, Plus, Grid3X3, Heart, FileText, Bot, Pencil } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,8 @@ interface ProfileProps {
 export default function Profile({ user }: ProfileProps) {
   const [showAddPetModal, setShowAddPetModal] = useState(false);
   const [selectedPet, setSelectedPet] = useState<any>(null);
+  const [showEditPetModal, setShowEditPetModal] = useState(false);
+  const [activeTab, setActiveTab] = useState('pets');
 
   const { data: userPets = [] } = useQuery({
     queryKey: ['/api/pets/user', user.id],
@@ -80,7 +83,7 @@ export default function Profile({ user }: ProfileProps) {
 
       {/* Pet Management Tabs */}
       <div className="border-t border-gray-200">
-        <Tabs defaultValue="pets" className="w-full">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="pets" className="flex items-center space-x-2">
               <Grid3X3 className="w-4 h-4" />
@@ -100,8 +103,12 @@ export default function Profile({ user }: ProfileProps) {
             {userPets.length > 0 ? (
               <div className="space-y-4 p-4">
                 {userPets.map((pet: any) => (
-                  <Card key={pet.id} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setSelectedPet(pet)}>
-                    <CardContent className="p-4">
+                  <Card
+                    key={pet.id}
+                    className={`cursor-pointer hover:shadow-md transition-shadow ${selectedPet?.id === pet.id ? 'ring-2 ring-pink-500 bg-pink-50' : ''}`}
+                    onClick={() => setSelectedPet(pet)}
+                  >
+                    <CardContent className="p-4 relative">
                       <div className="flex items-center space-x-4">
                         <div className="w-16 h-16 rounded-full overflow-hidden bg-gray-100">
                           {pet.profileImage || pet.avatar ? (
@@ -122,10 +129,25 @@ export default function Profile({ user }: ProfileProps) {
                           <p className="text-sm text-gray-500">{pet.age} years old</p>
                           {pet.species && <p className="text-sm text-gray-500">{pet.species}</p>}
                         </div>
-                        <Button variant="outline" size="sm">
-                          <FileText className="w-4 h-4 mr-1" />
-                          Records
-                        </Button>
+                        <div className="flex items-center space-x-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={e => { e.stopPropagation(); setSelectedPet(pet); setActiveTab('medical'); }}
+                          >
+                            <FileText className="w-4 h-4 mr-1" />
+                            Records
+                          </Button>
+                          {selectedPet?.id === pet.id && (
+                            <button
+                              className="bg-white rounded-full p-2 shadow hover:bg-gray-100"
+                              onClick={e => { e.stopPropagation(); setShowEditPetModal(true); }}
+                              aria-label="Edit Pet"
+                            >
+                              <Pencil className="w-5 h-5 text-pink-500" />
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
@@ -196,6 +218,14 @@ export default function Profile({ user }: ProfileProps) {
         <AddPetModal
           isOpen={showAddPetModal}
           onClose={() => setShowAddPetModal(false)}
+          userId={user.id}
+        />
+      )}
+      {showEditPetModal && selectedPet && (
+        <EditPetModal
+          isOpen={showEditPetModal}
+          onClose={() => setShowEditPetModal(false)}
+          pet={selectedPet}
           userId={user.id}
         />
       )}
