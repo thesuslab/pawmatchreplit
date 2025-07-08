@@ -46,8 +46,8 @@ interface PetCareRecommendations {
 }
 
 export default function AICareTab({ pet, userId }: AICareTabProps) {
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
-  const [inputMessage, setInputMessage] = useState("");
+  // Remove chatMessages, inputMessage, chatMutation, handleSendMessage, handleKeyPress, and Chat tab UI
+  // Only show the AI Recommendations tab and its content
   const { toast } = useToast();
 
   // Fetch AI recommendations for the pet
@@ -77,55 +77,6 @@ export default function AICareTab({ pet, userId }: AICareTabProps) {
   });
   const recommendations = data?.recommendations;
 
-  // Chat mutation
-  const chatMutation = useMutation({
-    mutationFn: async (message: string) => {
-      return apiRequest('/api/ai/chat', 'POST', {
-        message,
-        petName: pet.name,
-        petBreed: pet.breed,
-        petAge: pet.age,
-        petSpecies: pet.species
-      });
-    },
-    onSuccess: async (response) => {
-      const data = await response.json();
-      setChatMessages(prev => [...prev, {
-        role: 'assistant',
-        content: data.message || data.response || '',
-        timestamp: new Date()
-      }]);
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to get AI response",
-        variant: "destructive",
-      });
-    }
-  });
-
-  const handleSendMessage = () => {
-    if (!inputMessage.trim()) return;
-
-    const userMessage: ChatMessage = {
-      role: 'user',
-      content: inputMessage,
-      timestamp: new Date()
-    };
-
-    setChatMessages(prev => [...prev, userMessage]);
-    chatMutation.mutate(inputMessage);
-    setInputMessage("");
-  };
-
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSendMessage();
-    }
-  };
-
   if (recommendationsLoading) {
     return (
       <div className="flex items-center justify-center p-8">
@@ -138,9 +89,8 @@ export default function AICareTab({ pet, userId }: AICareTabProps) {
   return (
     <div className="space-y-4">
       <Tabs defaultValue="recommendations" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="w-full">
           <TabsTrigger value="recommendations">AI Recommendations</TabsTrigger>
-          <TabsTrigger value="chat">Chat with AI</TabsTrigger>
         </TabsList>
         
         <TabsContent value="recommendations" className="space-y-4">
@@ -336,87 +286,6 @@ export default function AICareTab({ pet, userId }: AICareTabProps) {
               </CardContent>
             </Card>
           )}
-        </TabsContent>
-        
-        <TabsContent value="chat" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Bot className="h-5 w-5 text-blue-600" />
-                AI Pet Care Assistant
-              </CardTitle>
-              <p className="text-sm text-gray-600">
-                Ask me anything about {pet.name}'s care, health, or behavior!
-              </p>
-            </CardHeader>
-            <CardContent>
-              <ScrollArea className="h-96 w-full border rounded-md p-4 mb-4">
-                {chatMessages.length === 0 ? (
-                  <div className="text-center text-gray-500 py-8">
-                    <Bot className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-                    <p>Start a conversation with your AI pet care assistant!</p>
-                    <p className="text-sm mt-2">Ask about training, health, nutrition, or behavior.</p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {chatMessages.map((message, index) => (
-                      <div key={index} className={`flex gap-3 ${message.role === 'user' ? 'flex-row-reverse' : ''}`}>
-                        <div className={`p-2 rounded-full ${message.role === 'user' ? 'bg-blue-100' : 'bg-gray-100'}`}>
-                          {message.role === 'user' ? (
-                            <User className="h-4 w-4 text-blue-600" />
-                          ) : (
-                            <Bot className="h-4 w-4 text-gray-600" />
-                          )}
-                        </div>
-                        <div className={`flex-1 p-3 rounded-lg ${
-                          message.role === 'user' 
-                            ? 'bg-blue-600 text-white ml-12' 
-                            : 'bg-gray-100 text-gray-900 mr-12'
-                        }`}>
-                          <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                          <p className={`text-xs mt-1 ${
-                            message.role === 'user' ? 'text-blue-200' : 'text-gray-500'
-                          }`}>
-                            {message.timestamp.toLocaleTimeString()}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                    {chatMutation.isPending && (
-                      <div className="flex gap-3">
-                        <div className="p-2 rounded-full bg-gray-100">
-                          <Bot className="h-4 w-4 text-gray-600" />
-                        </div>
-                        <div className="flex-1 p-3 rounded-lg bg-gray-100 text-gray-900 mr-12">
-                          <div className="flex items-center gap-2">
-                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600"></div>
-                            <span className="text-sm">Thinking...</span>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </ScrollArea>
-              
-              <div className="flex gap-2">
-                <Input
-                  value={inputMessage}
-                  onChange={(e) => setInputMessage(e.target.value)}
-                  onKeyPress={handleKeyPress}
-                  placeholder={`Ask about ${pet.name}'s care...`}
-                  disabled={chatMutation.isPending}
-                />
-                <Button 
-                  onClick={handleSendMessage}
-                  disabled={!inputMessage.trim() || chatMutation.isPending}
-                  size="sm"
-                >
-                  <Send className="h-4 w-4" />
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
         </TabsContent>
       </Tabs>
     </div>

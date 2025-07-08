@@ -143,7 +143,11 @@ export class MemStorage implements IStorage {
       id,
       ownerId: insertPet.ownerId || insertPet.userId || 0,
       userId: insertPet.userId || null,
+      name: insertPet.name || '',
       species: insertPet.species || null,
+      breed: insertPet.breed || '',
+      age: insertPet.age ?? 0,
+      gender: insertPet.gender || '',
       weight: insertPet.weight || null,
       color: insertPet.color || null,
       bio: insertPet.bio || null,
@@ -156,7 +160,8 @@ export class MemStorage implements IStorage {
       lastCheckup: insertPet.lastCheckup || null,
       lastVisit: insertPet.lastVisit || null,
       healthTips: insertPet.healthTips || [],
-      dietRecommendations: insertPet.dietRecommendations || null
+      dietRecommendations: insertPet.dietRecommendations || null,
+      aiRecommendations: insertPet.aiRecommendations ?? null,
     };
     this.pets.set(id, pet);
     return pet;
@@ -229,26 +234,26 @@ export class MemStorage implements IStorage {
     return Array.from(this.medicalRecords.values()).filter(record => record.petId === petId);
   }
 
-  async createMedicalRecord(insertRecord: InsertMedicalRecord): Promise<MedicalRecord> {
+  async createMedicalRecord(record: InsertMedicalRecord): Promise<MedicalRecord> {
     const id = this.currentMedicalRecordId++;
-    const record: MedicalRecord = { 
-      ...insertRecord, 
+    const medRecord: MedicalRecord = { 
+      ...record, 
       id,
-      appointmentId: insertRecord.appointmentId || null,
-      veterinarianId: insertRecord.veterinarianId || null,
-      description: insertRecord.description || null,
-      diagnosis: insertRecord.diagnosis || null,
-      treatment: insertRecord.treatment || null,
-      notes: insertRecord.notes || null,
-      cost: insertRecord.cost || null,
-      attachments: insertRecord.attachments || [],
-      prescriptions: insertRecord.prescriptions || null,
-      type: insertRecord.type || null,
-      nextDue: insertRecord.nextDue || null,
-      isCompleted: insertRecord.isCompleted ?? false
+      appointmentId: record.appointmentId || null,
+      veterinarianId: record.veterinarianId || null,
+      description: record.description || null,
+      diagnosis: record.diagnosis || null,
+      treatment: record.treatment || null,
+      notes: record.notes || null,
+      cost: record.cost || null,
+      attachments: record.attachments || [],
+      prescriptions: record.prescriptions || null,
+      type: record.type || null,
+      nextDue: record.nextDue || null,
+      isCompleted: record.isCompleted ?? false
     };
-    this.medicalRecords.set(id, record);
-    return record;
+    this.medicalRecords.set(id, medRecord);
+    return medRecord;
   }
 
   async updateMedicalRecord(id: number, updates: Partial<MedicalRecord>): Promise<MedicalRecord | undefined> {
@@ -264,10 +269,10 @@ export class MemStorage implements IStorage {
     return this.likes.get(`${userId}-${postId}`);
   }
 
-  async createLike(insertLike: InsertLike): Promise<Like> {
+  async createLike(like: InsertLike): Promise<Like> {
     const id = this.currentLikeId++;
-    const like: Like = { ...insertLike, id };
-    this.likes.set(`${like.userId}-${like.postId}`, like);
+    const likeObj: Like = { ...like, id };
+    this.likes.set(`${like.userId}-${like.postId}`, likeObj);
     
     // Update post likes count
     const post = this.posts.get(like.postId);
@@ -275,7 +280,7 @@ export class MemStorage implements IStorage {
       this.posts.set(like.postId, { ...post, likesCount: (post.likesCount || 0) + 1 });
     }
     
-    return like;
+    return likeObj;
   }
 
   async deleteLike(userId: number, postId: number): Promise<boolean> {
@@ -301,11 +306,11 @@ export class MemStorage implements IStorage {
     return this.follows.get(`${followerId}-${followedPetId}`);
   }
 
-  async createFollow(insertFollow: InsertFollow): Promise<Follow> {
+  async createFollow(follow: InsertFollow): Promise<Follow> {
     const id = this.currentFollowId++;
-    const follow: Follow = { ...insertFollow, id };
-    this.follows.set(`${follow.followerId}-${follow.followedPetId}`, follow);
-    return follow;
+    const followObj: Follow = { ...follow, id };
+    this.follows.set(`${follow.followerId}-${follow.followedPetId}`, followObj);
+    return followObj;
   }
 
   async deleteFollow(followerId: number, followedPetId: number): Promise<boolean> {
@@ -325,18 +330,20 @@ export class MemStorage implements IStorage {
     return Array.from(this.comments.values()).filter(comment => comment.postId === postId);
   }
 
-  async createComment(insertComment: InsertComment): Promise<Comment> {
+  async createComment(comment: InsertComment): Promise<Comment> {
     const id = this.currentCommentId++;
-    const comment: Comment = { ...insertComment, id, timestamp: new Date() };
-    this.comments.set(id, comment);
-    
+    const commentObj: Comment = {
+      ...comment,
+      id,
+      timestamp: new Date(),
+    };
+    this.comments.set(id, commentObj);
     // Update post comments count
     const post = this.posts.get(comment.postId);
     if (post) {
       this.posts.set(comment.postId, { ...post, commentsCount: (post.commentsCount || 0) + 1 });
     }
-    
-    return comment;
+    return commentObj;
   }
 
   // Match operations
@@ -345,17 +352,17 @@ export class MemStorage implements IStorage {
     return this.matches.get(key);
   }
 
-  async createMatch(insertMatch: InsertMatch): Promise<Match> {
+  async createMatch(match: InsertMatch): Promise<Match> {
     const id = this.currentMatchId++;
-    const match: Match = { 
-      ...insertMatch, 
+    const matchObj: Match = { 
+      ...match, 
       id, 
       timestamp: new Date(),
-      isMatch: insertMatch.isMatch ?? false
+      isMatch: match.isMatch ?? false
     };
     const key = `${match.userId}-${Math.min(match.petId1, match.petId2)}-${Math.max(match.petId1, match.petId2)}`;
-    this.matches.set(key, match);
-    return match;
+    this.matches.set(key, matchObj);
+    return matchObj;
   }
 
   async getMatchesByUserId(userId: number): Promise<Match[]> {
@@ -459,22 +466,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getPostsForFeed(userId: number): Promise<Post[]> {
-    // Get posts from followed pets and own pets
-    const userPets = await this.getPetsByUserId(userId);
-    const userPetIds = userPets.map(pet => pet.id);
-    
-    const userFollows = await db.select().from(follows).where(eq(follows.followerId, userId));
-    const followedPetIds = userFollows.map(follow => follow.followedPetId);
-    
-    const allRelevantPetIds = [...userPetIds, ...followedPetIds];
-    
-    if (allRelevantPetIds.length === 0) {
-      return [];
-    }
-    
-    return await db.select().from(posts)
-      .where(sql`${posts.petId} = ANY(${allRelevantPetIds})`)
-      .orderBy(desc(posts.timestamp));
+    // Return all posts from all users, ordered by timestamp descending
+    return await db.select().from(posts).orderBy(desc(posts.timestamp));
   }
 
   async createPost(insertPost: InsertPost): Promise<Post> {

@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Camera, X, MapPin } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import imageCompression from 'browser-image-compression';
 
 interface CreatePostModalProps {
   isOpen: boolean;
@@ -82,19 +83,33 @@ export default function CreatePostModal({ isOpen, onClose, userId }: CreatePostM
     createPostMutation.mutate(formData);
   };
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const result = e.target?.result as string;
-      setFormData(prev => ({
-        ...prev,
-        imageUrl: result
-      }));
-    };
-    reader.readAsDataURL(file);
+    // Compress the image before reading
+    try {
+      const compressedFile = await imageCompression(file, {
+        maxSizeMB: 1,
+        maxWidthOrHeight: 1200,
+        useWebWorker: true,
+      });
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const result = e.target?.result as string;
+        setFormData(prev => ({
+          ...prev,
+          imageUrl: result
+        }));
+      };
+      reader.readAsDataURL(compressedFile);
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to compress image',
+        variant: 'destructive',
+      });
+    }
   };
 
   if (userPets.length === 0) {

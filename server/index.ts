@@ -5,8 +5,9 @@ import { seedDatabase } from "./seed";
 import 'dotenv/config';
 
 const app = express();
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
+const payloadLimit = process.env.PAYLOAD_LIMIT_MB ? `${process.env.PAYLOAD_LIMIT_MB}mb` : '2mb';
+app.use(express.json({ limit: payloadLimit }));
+app.use(express.urlencoded({ extended: false, limit: payloadLimit }));
 
 app.use((req, res, next) => {
   const start = Date.now();
@@ -69,7 +70,7 @@ app.use((req, res, next) => {
     // Seed the database on startup in development
     if (app.get("env") === "development") {
       try {
-        await seedDatabase();
+        // await seedDatabase();
         log("Database not seededsuccessfully");
         // log("Database seeded successfully");
       } catch (error) {
