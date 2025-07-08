@@ -1,13 +1,15 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import BottomNavigation from "@/components/bottom-navigation";
 import PetProfileCard from "@/components/pet-profile-card";
 import { Search } from "lucide-react";
+import { useEffect, useState } from 'react';
 
 interface DiscoverProps {
   user: any;
 }
 
 export default function Discover({ user }: DiscoverProps) {
+  const queryClient = useQueryClient();
   const { data: publicPets = [], isLoading } = useQuery({
     queryKey: ['/api/pets/public'],
     queryFn: async () => {
@@ -16,6 +18,24 @@ export default function Discover({ user }: DiscoverProps) {
       return response.json();
     }
   });
+
+  const { data: follows = [] } = useQuery({
+    queryKey: ['/api/follows/user', user.id],
+    queryFn: async () => {
+      const response = await fetch(`/api/follows/user/${user.id}`);
+      if (!response.ok) throw new Error('Failed to fetch follows');
+      return response.json();
+    }
+  });
+
+  // Get set of followed pet IDs
+  const followedPetIds = new Set(follows.map((f: any) => f.followedPetId));
+  const filteredPets = publicPets.filter((pet: any) => !followedPetIds.has(pet.id));
+
+  const handleFollowChange = () => {
+    queryClient.invalidateQueries({ queryKey: ['/api/follows/user', user.id] });
+    queryClient.invalidateQueries({ queryKey: ['/api/pets/public'] });
+  };
 
   return (
     <div className="max-w-md mx-auto bg-gray-50 min-h-screen relative">
@@ -33,10 +53,16 @@ export default function Discover({ user }: DiscoverProps) {
           <div className="flex items-center justify-center py-8">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-pink-500"></div>
           </div>
-        ) : publicPets.length > 0 ? (
+        ) : filteredPets.length > 0 ? (
           <div className="space-y-6">
-            {publicPets.map((pet: any) => (
-              <PetProfileCard key={pet.id} pet={pet} currentUser={user} />
+            {filteredPets.map((pet: any) => (
+              <PetProfileCard
+                key={pet.id}
+                pet={pet}
+                currentUser={user}
+                isInitiallyFollowing={false}
+                onFollowChange={handleFollowChange}
+              />
             ))}
           </div>
         ) : (

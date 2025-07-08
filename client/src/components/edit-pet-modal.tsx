@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Label } from './ui/label';
 import { Input } from './ui/input';
@@ -31,6 +31,35 @@ export default function EditPetModal({ isOpen, onClose, pet, userId }: EditPetMo
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  const [coOwnerQuery, setCoOwnerQuery] = useState('');
+  const [coOwnerResults, setCoOwnerResults] = useState<any[]>([]);
+  const [coOwnerId, setCoOwnerId] = useState(pet.coOwnerId || '');
+  const [isSearching, setIsSearching] = useState(false);
+
+  // Debounced search for co-owner
+  useEffect(() => {
+    if (!coOwnerQuery) {
+      setCoOwnerResults([]);
+      return;
+    }
+    setIsSearching(true);
+    const timeout = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/users/search?q=${encodeURIComponent(coOwnerQuery)}`);
+        if (res.ok) {
+          const users = await res.json();
+          setCoOwnerResults(users);
+        } else {
+          setCoOwnerResults([]);
+        }
+      } catch {
+        setCoOwnerResults([]);
+      }
+      setIsSearching(false);
+    }, 400);
+    return () => clearTimeout(timeout);
+  }, [coOwnerQuery]);
 
   const updatePetMutation = useMutation({
     mutationFn: async (petData: any) => {
@@ -65,7 +94,7 @@ export default function EditPetModal({ isOpen, onClose, pet, userId }: EditPetMo
       });
       return;
     }
-    updatePetMutation.mutate(formData);
+    updatePetMutation.mutate({ ...formData, coOwnerId });
   };
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -201,6 +230,35 @@ export default function EditPetModal({ isOpen, onClose, pet, userId }: EditPetMo
               placeholder="Write a short bio..."
               rows={3}
             />
+          </div>
+          {/* Co-owner linking */}
+          <div>
+            <Label htmlFor="co-owner">Co-owner (username or email)</Label>
+            <Input
+              id="co-owner"
+              type="text"
+              value={coOwnerQuery}
+              onChange={e => setCoOwnerQuery(e.target.value)}
+              placeholder="Search by username or email"
+              autoComplete="off"
+            />
+            {isSearching && <div className="text-xs text-gray-500 mt-1">Searching...</div>}
+            {coOwnerResults.length > 0 && (
+              <div className="border rounded bg-white mt-1 max-h-32 overflow-y-auto z-10">
+                {coOwnerResults.map((user) => (
+                  <div
+                    key={user.id}
+                    className={`px-3 py-2 cursor-pointer hover:bg-pink-100 ${coOwnerId === user.id ? 'bg-pink-50' : ''}`}
+                    onClick={() => { setCoOwnerId(user.id); setCoOwnerQuery(user.username || user.email); setCoOwnerResults([]); }}
+                  >
+                    {user.name} <span className="text-xs text-gray-500">({user.username || user.email})</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            {coOwnerId && (
+              <div className="text-xs text-green-600 mt-1">Co-owner selected</div>
+            )}
           </div>
           {/* Submit Button */}
           <Button

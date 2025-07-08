@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Heart, MessageCircle, Send, Bookmark, MoreHorizontal } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from './ui/dropdown-menu';
 
 interface PetPostProps {
   post: any;
@@ -38,6 +39,19 @@ export default function PetPost({ post, currentUser }: PetPostProps) {
     },
   });
 
+  const unfollowMutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest("DELETE", `/api/follows/${currentUser.id}/${post.pet.id}`);
+    },
+    onSuccess: () => {
+      toast({ title: 'Unfollowed', description: `You have unfollowed ${post.pet.name}` });
+      queryClient.invalidateQueries({ queryKey: ['/api/posts/feed', currentUser.id] });
+    },
+    onError: () => {
+      toast({ title: 'Error', description: 'Failed to unfollow', variant: 'destructive' });
+    },
+  });
+
   const formatTimeAgo = (date: string) => {
     const now = new Date();
     const postDate = new Date(date);
@@ -54,7 +68,7 @@ export default function PetPost({ post, currentUser }: PetPostProps) {
       {/* Post Header */}
       <div className="flex items-center justify-between px-4 py-3">
         <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 bg-gradient-to-br from-pink-400 to-blue-400 rounded-full overflow-hidden">
+          <div className="w-10 h-10 bg-gradient-to-br from-pink-400 to-blue-400 rounded-full overflow-hidden cursor-pointer" onClick={() => window.location.href = `/pet/${post.pet.id}`}>
             {post.pet?.profileImage ? (
               <img 
                 src={post.pet.profileImage} 
@@ -79,7 +93,16 @@ export default function PetPost({ post, currentUser }: PetPostProps) {
             </span>
           )}
           <button className="text-gray-500 hover:text-gray-700">
-            <MoreHorizontal className="w-5 h-5" />
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <span><MoreHorizontal className="w-5 h-5" /></span>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuItem onSelect={() => unfollowMutation.mutate()} disabled={unfollowMutation.isPending}>
+                  Unfollow
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </button>
         </div>
       </div>

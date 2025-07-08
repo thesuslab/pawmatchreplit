@@ -7,10 +7,12 @@ import { useToast } from "@/hooks/use-toast";
 interface PetProfileCardProps {
   pet: any;
   currentUser: any;
+  isInitiallyFollowing?: boolean;
+  onFollowChange?: () => void;
 }
 
-export default function PetProfileCard({ pet, currentUser }: PetProfileCardProps) {
-  const [isFollowing, setIsFollowing] = useState(false);
+export default function PetProfileCard({ pet, currentUser, isInitiallyFollowing = false, onFollowChange }: PetProfileCardProps) {
+  const [isFollowing, setIsFollowing] = useState(isInitiallyFollowing);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -32,6 +34,7 @@ export default function PetProfileCard({ pet, currentUser }: PetProfileCardProps
         description: `You are ${isFollowing ? "no longer following" : "now following"} ${pet.name}`,
       });
       queryClient.invalidateQueries({ queryKey: ['/api/pets/public'] });
+      if (onFollowChange) onFollowChange();
     },
     onError: () => {
       toast({
@@ -49,6 +52,12 @@ export default function PetProfileCard({ pet, currentUser }: PetProfileCardProps
     if (pet.gender === "female") tags.push({ label: "Female", color: "bg-pink-100 text-pink-600" });
     tags.push({ label: "Friendly", color: "bg-green-100 text-green-600" });
     return tags;
+  };
+
+  const handleShare = () => {
+    const url = `${window.location.origin}/pet/${pet.id}`;
+    navigator.clipboard.writeText(url);
+    toast({ title: 'Link copied!', description: 'Pet profile link copied to clipboard.' });
   };
 
   return (
@@ -131,7 +140,11 @@ export default function PetProfileCard({ pet, currentUser }: PetProfileCardProps
           >
             {followMutation.isPending ? "..." : (isFollowing ? "Following" : "Connect")}
           </button>
-          <button className="px-4 py-2 border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors">
+          <button
+            className="px-4 py-2 border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors"
+            onClick={handleShare}
+            type="button"
+          >
             <Share className="w-5 h-5" />
           </button>
         </div>

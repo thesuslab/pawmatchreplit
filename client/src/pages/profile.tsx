@@ -5,6 +5,7 @@ import AddPetModal from "@/components/add-pet-modal";
 import MedicalRecordsTab from "@/components/medical-records-tab";
 import AICareTab from "@/components/ai-care-tab";
 import EditPetModal from '@/components/edit-pet-modal';
+import EditProfileModal from '@/components/edit-profile-modal';
 import { Settings, Plus, Grid3X3, Heart, FileText, Bot, Pencil } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,6 +20,7 @@ export default function Profile({ user }: ProfileProps) {
   const [selectedPet, setSelectedPet] = useState<any>(null);
   const [showEditPetModal, setShowEditPetModal] = useState(false);
   const [activeTab, setActiveTab] = useState('pets');
+  const [showEditProfileModal, setShowEditProfileModal] = useState(false);
 
   const { data: userPets = [] } = useQuery({
     queryKey: ['/api/pets/user', user.id],
@@ -42,7 +44,7 @@ export default function Profile({ user }: ProfileProps) {
           <h1 className="text-xl font-bold text-gray-900">{user.username}</h1>
         </div>
         <div className="flex items-center space-x-4">
-          <button className="text-gray-600 hover:text-gray-900 transition-colors">
+          <button className="text-gray-600 hover:text-gray-900 transition-colors" onClick={() => setShowEditProfileModal(true)}>
             <Settings className="w-6 h-6" />
           </button>
           <button
@@ -227,6 +229,13 @@ export default function Profile({ user }: ProfileProps) {
           onClose={() => setShowEditPetModal(false)}
           pet={selectedPet}
           userId={user.id}
+        />
+      )}
+      {showEditProfileModal && (
+        <EditProfileModal
+          isOpen={showEditProfileModal}
+          onClose={() => setShowEditProfileModal(false)}
+          user={user}
         />
       )}
     </div>
