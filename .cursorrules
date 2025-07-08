@@ -1,0 +1,54 @@
+# .cursorrules for PawConnect
+
+[general]
+ignore_reserved_words = true
+reserved_words = ["match", "matches", "profile", "user", "pet", "post", "comment", "like", "follow", "health", "admin"]
+
+[typescript]
+strict = true
+noImplicitAny = true
+moduleResolution = "bundler"
+baseUrl = "."
+paths = {
+  "@/*": ["./client/src/*"],
+  "@shared/*": ["./shared/*"]
+}
+
+[react]
+jsx = "preserve"
+function_component_naming = "PascalCase"
+prefer_function_components = true
+no_inline_styles = true
+use_tailwind = true
+
+[node]
+use_esmodules = true
+prefer_imports = true
+no_console = false
+
+[database]
+prefer_drizzle_orm = true
+schema_file = "shared/schema.ts"
+migrations_folder = "./migrations"
+
+[api]
+prefer_restful = true
+validate_with_zod = true
+error_handling = "consistent"
+
+[frontend]
+ui_library = "shadcn/ui"
+use_radix_ui = true
+state_management = "tanstack-query"
+
+[conventions]
+commit_message_format = "<type>: <description>"
+branch_naming = "feature/<desc>-<issue#>"
+
+[ignore]
+node_modules/
+dist/
+build/
+.env
+*.test.ts
+*.spec.ts 
