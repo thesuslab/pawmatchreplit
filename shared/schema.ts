@@ -42,6 +42,7 @@ export const pets = pgTable("pets", {
   lastVisit: timestamp("last_visit"), // From seed data
   healthTips: text("health_tips").array().default([]), // From seed data
   dietRecommendations: text("diet_recommendations"), // From seed data
+  aiRecommendations: text("ai_recommendations"),
 });
 
 export const posts = pgTable("posts", {

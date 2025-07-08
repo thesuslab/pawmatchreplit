@@ -69,7 +69,7 @@ app.use((req, res, next) => {
     // Seed the database on startup in development
     if (app.get("env") === "development") {
       try {
-        // await seedDatabase();
+        await seedDatabase();
         log("Database not seededsuccessfully");
         // log("Database seeded successfully");
       } catch (error) {

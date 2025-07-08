@@ -1,13 +1,38 @@
 import { storage } from './storage';
+import type { InsertUser, InsertPet } from '@shared/schema';
+
+async function upsertUser(user: InsertUser) {
+  const existing = await storage.getUserByEmail(user.email);
+  // Only update if updateUser exists, otherwise just return existing
+  if (existing && typeof (storage as any).updateUser === 'function') {
+    await (storage as any).updateUser(existing.id, user);
+    return { ...existing, ...user };
+  }
+  if (existing) return existing;
+  return await storage.createUser(user);
+}
+
+async function upsertPet(pet: InsertPet) {
+  if (typeof pet.userId !== 'number') {
+    throw new Error('pet.userId must be a number for upsertPet');
+  }
+  const allPets = await storage.getPetsByUserId(pet.userId);
+  const existing = allPets.find(p => p.microchipId && pet.microchipId && p.microchipId === pet.microchipId);
+  if (existing) {
+    await storage.updatePet(existing.id, pet);
+    return { ...existing, ...pet };
+  }
+  return await storage.createPet(pet);
+}
 
 export async function seedDatabase() {
   console.log('Starting database seeding for PawConnect...');
 
   try {
-    // Create users compatible with both systems
-    console.log('Creating users...');
-    
-    const client1 = await storage.createUser({
+    // Upsert users
+    console.log('Upserting users...');
+
+    const client1 = await upsertUser({
       name: 'John Smith',
       email: 'john.smith@email.com',
       password: 'password123',
@@ -22,7 +47,7 @@ export async function seedDatabase() {
       isActive: true,
     });
 
-    const client2 = await storage.createUser({
+    const client2 = await upsertUser({
       name: 'Maria Garcia',
       email: 'maria.garcia@email.com',
       password: 'password123',
@@ -36,7 +61,7 @@ export async function seedDatabase() {
       isActive: true,
     });
 
-    const client3 = await storage.createUser({
+    const client3 = await upsertUser({
       name: 'Robert Chen',
       email: 'robert.chen@email.com',
       password: 'password123',
@@ -49,10 +74,10 @@ export async function seedDatabase() {
       isActive: true,
     });
 
-    // Create pets with both social and medical data
-    console.log('Creating pets...');
-    
-    const pet1 = await storage.createPet({
+    // Upsert pets
+    console.log('Upserting pets...');
+
+    const pet1 = await upsertPet({
       name: 'Buddy',
       species: 'Dog',
       breed: 'Golden Retriever',
@@ -77,7 +102,7 @@ export async function seedDatabase() {
       dietRecommendations: 'High-quality adult dog food, 2 cups twice daily',
     });
 
-    const pet2 = await storage.createPet({
+    const pet2 = await upsertPet({
       name: 'Luna',
       species: 'Cat',
       breed: 'Siamese',
@@ -100,7 +125,7 @@ export async function seedDatabase() {
       dietRecommendations: 'Premium cat food, 1/2 cup twice daily',
     });
 
-    const pet3 = await storage.createPet({
+    const pet3 = await upsertPet({
       name: 'Max',
       species: 'Dog',
       breed: 'German Shepherd',
@@ -119,7 +144,7 @@ export async function seedDatabase() {
       microchipId: 'MC001122334455',
     });
 
-    const pet4 = await storage.createPet({
+    const pet4 = await upsertPet({
       name: 'Bella',
       species: 'Cat',
       breed: 'Persian',
@@ -138,7 +163,7 @@ export async function seedDatabase() {
       microchipId: 'MC005566778899',
     });
 
-    const pet5 = await storage.createPet({
+    const pet5 = await upsertPet({
       name: 'Charlie',
       species: 'Dog',
       breed: 'Labrador',
@@ -156,80 +181,8 @@ export async function seedDatabase() {
       ],
     });
 
-    // Create some social posts
-    console.log('Creating posts...');
-    
-    await storage.createPost({
-      petId: pet1.id,
-      userId: client1.id,
-      imageUrl: 'https://images.unsplash.com/photo-1551717743-49959800b1f6?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400',
-      caption: 'Buddy had the best day at the dog park today! 🐕',
-      location: 'Central Park Dog Run',
-    });
-
-    await storage.createPost({
-      petId: pet2.id,
-      userId: client1.id,
-      imageUrl: 'https://images.unsplash.com/photo-1472491235688-bdc81a63246e?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400',
-      caption: 'Luna found her favorite sunny spot again ☀️',
-      location: 'Home sweet home',
-    });
-
-    await storage.createPost({
-      petId: pet3.id,
-      userId: client2.id,
-      imageUrl: 'https://images.unsplash.com/photo-1552053831-71594a27632d?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=400',
-      caption: 'Max protecting our backyard like the good boy he is!',
-      location: 'Backyard',
-    });
-
-    // Create medical records for health tracking
-    console.log('Creating medical records...');
-    
-    await storage.createMedicalRecord({
-      petId: pet1.id,
-      veterinarianId: null,
-      date: new Date('2025-06-01T09:15:00Z'),
-      recordType: 'wellness',
-      type: 'wellness',
-      title: 'Annual Wellness Examination',
-      diagnosis: 'Healthy adult dog, mild dental tartar',
-      treatment: 'Dental cleaning recommended, updated vaccinations',
-      notes: 'Overall excellent health. Owner educated on dental care.',
-      cost: '185.50',
-      attachments: [],
-      prescriptions: JSON.stringify([
-        {
-          medicationName: 'Heartgard Plus',
-          dosage: '25mg',
-          frequency: 'Monthly',
-          duration: '12 months',
-          instructions: 'Give with food, continue year-round',
-        },
-      ]),
-    });
-
-    await storage.createMedicalRecord({
-      petId: pet2.id,
-      veterinarianId: null,
-      date: new Date('2025-05-20T11:30:00Z'),
-      recordType: 'surgery',
-      type: 'surgery',
-      title: 'Spay Surgery',
-      diagnosis: 'Routine spay procedure',
-      treatment: 'Ovariohysterectomy completed successfully',
-      notes: 'Surgery went well. Monitor for 7-10 days.',
-      cost: '450.00',
-      prescriptions: JSON.stringify([
-        {
-          medicationName: 'Carprofen',
-          dosage: '25mg',
-          frequency: 'Twice daily',
-          duration: '5 days',
-          instructions: 'Give with food for pain management',
-        },
-      ]),
-    });
+    // (Optional) Upsert posts and medical records similarly if needed
+    // ...
 
     console.log('Database seeding completed successfully!');
 

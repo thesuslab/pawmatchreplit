@@ -417,8 +417,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log('[AI] /api/ai/generate-recommendations input:', req.body);
       const { generatePetCareRecommendations } = await import("./gemini");
       const recommendations = await generatePetCareRecommendations(name, breed, age, gender, species);
+      // Save recommendations to pet
+      await storage.updatePet(petId, { aiRecommendations: JSON.stringify(recommendations) });
       console.log('[AI] /api/ai/generate-recommendations output:', recommendations);
-      res.json(recommendations);
+      res.json({
+        recommendations,
+        promptMedicalRecord: true,
+        message: 'Would you like to add recommended vaccinations or training to medical records?'
+      });
     } catch (error) {
       console.error('[AI] /api/ai/generate-recommendations error:', error);
       res.status(500).json({ message: "Failed to generate AI recommendations", error });
@@ -430,21 +436,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const petId = parseInt(req.params.petId);
       console.log('[AI] /api/ai/recommendations/:petId input:', petId);
-      // (You may want to add caching logic here)
       const pet = await storage.getPet(petId);
       if (!pet) {
         return res.status(404).json({ message: "Pet not found" });
       }
-      const { generatePetCareRecommendations } = await import("./gemini");
-      const recommendations = await generatePetCareRecommendations(
-        pet.name,
-        pet.breed,
-        pet.age,
-        pet.gender,
-        pet.species || "dog"
-      );
-      console.log('[AI] /api/ai/recommendations/:petId output:', recommendations);
-      res.json(recommendations);
+      const alwaysRegenerate = process.env.AI_ALWAYS_REGENERATE === 'true';
+      let recommendations;
+      if (pet.aiRecommendations && !alwaysRegenerate) {
+        // Return saved recommendations
+        recommendations = JSON.parse(pet.aiRecommendations);
+      } else {
+        const { generatePetCareRecommendations } = await import("./gemini");
+        recommendations = await generatePetCareRecommendations(
+          pet.name,
+          pet.breed,
+          pet.age,
+          pet.gender,
+          pet.species || "dog"
+        );
+        // Save recommendations to pet
+        await storage.updatePet(petId, { aiRecommendations: JSON.stringify(recommendations) });
+        console.log('[AI] /api/ai/recommendations/:petId output:', recommendations);
+      }
+      // Ensure all fields are present in logical order
+      const ordered = {
+        trainingPlan: recommendations.trainingPlan || {},
+        careGuidelines: recommendations.careGuidelines || {},
+        medicalRecommendations: recommendations.medicalRecommendations || {},
+        breedingAdvice: recommendations.breedingAdvice || {},
+      };
+      res.json({
+        recommendations: ordered,
+        promptMedicalRecord: true,
+        message: 'Would you like to add recommended vaccinations or training to medical records?'
+      });
     } catch (error) {
       console.error('[AI] /api/ai/recommendations/:petId error:', error);
       res.status(500).json({ message: "Failed to generate recommendations", error });

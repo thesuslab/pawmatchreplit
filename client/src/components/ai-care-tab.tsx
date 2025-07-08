@@ -51,7 +51,7 @@ export default function AICareTab({ pet, userId }: AICareTabProps) {
   const { toast } = useToast();
 
   // Fetch AI recommendations for the pet
-  const { data: recommendations, isLoading: recommendationsLoading } = useQuery({
+  const { data, isLoading: recommendationsLoading } = useQuery({
     queryKey: ['/api/ai/recommendations', pet.id],
     queryFn: async () => {
       const response = await fetch(`/api/ai/recommendations/${pet.id}`);
@@ -75,6 +75,7 @@ export default function AICareTab({ pet, userId }: AICareTabProps) {
       return response.json();
     }
   });
+  const recommendations = data?.recommendations;
 
   // Chat mutation
   const chatMutation = useMutation({
@@ -87,10 +88,11 @@ export default function AICareTab({ pet, userId }: AICareTabProps) {
         petSpecies: pet.species
       });
     },
-    onSuccess: (data) => {
+    onSuccess: async (response) => {
+      const data = await response.json();
       setChatMessages(prev => [...prev, {
         role: 'assistant',
-        content: data.response,
+        content: data.message || data.response || '',
         timestamp: new Date()
       }]);
     },
@@ -155,21 +157,36 @@ export default function AICareTab({ pet, userId }: AICareTabProps) {
                 <CardContent className="space-y-3">
                   <div>
                     <h4 className="font-semibold text-sm mb-2">Basic Commands</h4>
-                    <div className="flex flex-wrap gap-1">
-                      {recommendations.trainingPlan.basicCommands.map((command: string, index: number) => (
-                        <Badge key={index} variant="secondary" className="text-xs">
-                          {command}
-                        </Badge>
-                      ))}
-                    </div>
+                    {recommendations.trainingPlan?.basicCommands?.length ? (
+                      <div className="flex flex-wrap gap-1">
+                        {recommendations.trainingPlan.basicCommands.map((command: string, index: number) => (
+                          <Badge key={index} variant="secondary" className="text-xs">
+                            {command}
+                          </Badge>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-xs text-gray-400">No commands available</span>
+                    )}
                   </div>
                   <div>
                     <h4 className="font-semibold text-sm mb-2">Weekly Schedule</h4>
                     <ul className="text-sm space-y-1">
-                      {recommendations.trainingPlan.weeklySchedule.map((schedule: string, index: number) => (
+                      {recommendations.trainingPlan?.weeklySchedule?.map((schedule: string, index: number) => (
                         <li key={index} className="flex items-start gap-2">
                           <span className="text-blue-600">•</span>
                           {schedule}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-sm mb-2">Training Tips</h4>
+                    <ul className="text-sm space-y-1">
+                      {recommendations.trainingPlan?.tips?.map((tip: string, index: number) => (
+                        <li key={index} className="flex items-start gap-2">
+                          <span className="text-blue-600">•</span>
+                          {tip}
                         </li>
                       ))}
                     </ul>
@@ -189,7 +206,7 @@ export default function AICareTab({ pet, userId }: AICareTabProps) {
                   <div>
                     <h4 className="font-semibold text-sm mb-2">Daily Routine</h4>
                     <ul className="text-sm space-y-1">
-                      {recommendations.careGuidelines.dailyRoutine.map((routine: string, index: number) => (
+                      {recommendations.careGuidelines?.dailyRoutine?.map((routine: string, index: number) => (
                         <li key={index} className="flex items-start gap-2">
                           <span className="text-red-600">•</span>
                           {routine}
@@ -199,15 +216,26 @@ export default function AICareTab({ pet, userId }: AICareTabProps) {
                   </div>
                   <div>
                     <h4 className="font-semibold text-sm mb-2">Exercise Requirements</h4>
-                    <p className="text-sm text-gray-600">{recommendations.careGuidelines.exerciseRequirements}</p>
+                    <p className="text-sm text-gray-600">{recommendations.careGuidelines?.exerciseRequirements || ''}</p>
                   </div>
                   <div>
                     <h4 className="font-semibold text-sm mb-2">Nutrition Tips</h4>
                     <ul className="text-sm space-y-1">
-                      {recommendations.careGuidelines.nutritionTips.map((tip: string, index: number) => (
+                      {recommendations.careGuidelines?.nutritionTips?.map((tip: string, index: number) => (
                         <li key={index} className="flex items-start gap-2">
                           <span className="text-red-600">•</span>
                           {tip}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-sm mb-2">Health Monitoring</h4>
+                    <ul className="text-sm space-y-1">
+                      {recommendations.careGuidelines?.healthMonitoring?.map((item: string, index: number) => (
+                        <li key={index} className="flex items-start gap-2">
+                          <span className="text-red-600">•</span>
+                          {item}
                         </li>
                       ))}
                     </ul>
@@ -227,7 +255,7 @@ export default function AICareTab({ pet, userId }: AICareTabProps) {
                   <div>
                     <h4 className="font-semibold text-sm mb-2">Vaccination Schedule</h4>
                     <ul className="text-sm space-y-1">
-                      {recommendations.medicalRecommendations.vaccinationSchedule.map((vaccine: string, index: number) => (
+                      {recommendations.medicalRecommendations?.vaccinationSchedule?.map((vaccine: string, index: number) => (
                         <li key={index} className="flex items-start gap-2">
                           <span className="text-green-600">•</span>
                           {vaccine}
@@ -238,10 +266,21 @@ export default function AICareTab({ pet, userId }: AICareTabProps) {
                   <div>
                     <h4 className="font-semibold text-sm mb-2">Common Health Issues</h4>
                     <ul className="text-sm space-y-1">
-                      {recommendations.medicalRecommendations.commonHealthIssues.map((issue: string, index: number) => (
+                      {recommendations.medicalRecommendations?.commonHealthIssues?.map((issue: string, index: number) => (
                         <li key={index} className="flex items-start gap-2">
                           <span className="text-green-600">•</span>
                           {issue}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-sm mb-2">Preventive Care</h4>
+                    <ul className="text-sm space-y-1">
+                      {recommendations.medicalRecommendations?.preventiveCare?.map((item: string, index: number) => (
+                        <li key={index} className="flex items-start gap-2">
+                          <span className="text-green-600">•</span>
+                          {item}
                         </li>
                       ))}
                     </ul>
@@ -260,15 +299,26 @@ export default function AICareTab({ pet, userId }: AICareTabProps) {
                 <CardContent className="space-y-3">
                   <div>
                     <h4 className="font-semibold text-sm mb-2">Optimal Age</h4>
-                    <p className="text-sm text-gray-600">{recommendations.breedingAdvice.optimalAge}</p>
+                    <p className="text-sm text-gray-600">{recommendations.breedingAdvice?.optimalAge || ''}</p>
                   </div>
                   <div>
                     <h4 className="font-semibold text-sm mb-2">Health Screening</h4>
                     <ul className="text-sm space-y-1">
-                      {recommendations.breedingAdvice.healthScreening.map((screening: string, index: number) => (
+                      {recommendations.breedingAdvice?.healthScreening?.map((screening: string, index: number) => (
                         <li key={index} className="flex items-start gap-2">
                           <span className="text-purple-600">•</span>
                           {screening}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-sm mb-2">Important Considerations</h4>
+                    <ul className="text-sm space-y-1">
+                      {recommendations.breedingAdvice?.considerations?.map((item: string, index: number) => (
+                        <li key={index} className="flex items-start gap-2">
+                          <span className="text-purple-600">•</span>
+                          {item}
                         </li>
                       ))}
                     </ul>

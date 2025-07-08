@@ -1,4 +1,4 @@
-CREATE TABLE "comments" (
+CREATE TABLE IF NOT EXISTS IF NOT EXISTS "comments" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"user_id" integer NOT NULL,
 	"post_id" integer NOT NULL,
@@ -6,19 +6,19 @@ CREATE TABLE "comments" (
 	"timestamp" timestamp DEFAULT now()
 );
 --> statement-breakpoint
-CREATE TABLE "follows" (
+CREATE TABLE IF NOT EXISTS IF NOT EXISTS "follows" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"follower_id" integer NOT NULL,
 	"followed_pet_id" integer NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "likes" (
+CREATE TABLE IF NOT EXISTS IF NOT EXISTS "likes" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"user_id" integer NOT NULL,
 	"post_id" integer NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "matches" (
+CREATE TABLE IF NOT EXISTS IF NOT EXISTS "matches" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"user_id" integer NOT NULL,
 	"pet_id_1" integer NOT NULL,
@@ -28,7 +28,7 @@ CREATE TABLE "matches" (
 	"timestamp" timestamp DEFAULT now()
 );
 --> statement-breakpoint
-CREATE TABLE "medical_records" (
+CREATE TABLE IF NOT EXISTS IF NOT EXISTS "medical_records" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"pet_id" integer NOT NULL,
 	"appointment_id" integer,
@@ -48,7 +48,7 @@ CREATE TABLE "medical_records" (
 	"is_completed" boolean DEFAULT false
 );
 --> statement-breakpoint
-CREATE TABLE "pets" (
+CREATE TABLE IF NOT EXISTS IF NOT EXISTS "pets" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"owner_id" integer NOT NULL,
 	"user_id" integer,
@@ -72,7 +72,7 @@ CREATE TABLE "pets" (
 	"diet_recommendations" text
 );
 --> statement-breakpoint
-CREATE TABLE "posts" (
+CREATE TABLE IF NOT EXISTS IF NOT EXISTS "posts" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"pet_id" integer NOT NULL,
 	"user_id" integer NOT NULL,
@@ -84,7 +84,7 @@ CREATE TABLE "posts" (
 	"timestamp" timestamp DEFAULT now()
 );
 --> statement-breakpoint
-CREATE TABLE "users" (
+CREATE TABLE IF NOT EXISTS IF NOT EXISTS "users" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"name" text NOT NULL,
 	"username" text,
@@ -103,3 +103,18 @@ CREATE TABLE "users" (
 	CONSTRAINT "users_username_unique" UNIQUE("username"),
 	CONSTRAINT "users_email_unique" UNIQUE("email")
 );
+
+-- Add ai_recommendations field to pets
+ALTER TABLE pets ADD COLUMN ai_recommendations TEXT;
+
+-- Create ai_chat_usage table to track daily chat usage per user and pet
+CREATE TABLE IF NOT EXISTS ai_chat_usage (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER NOT NULL,
+  pet_id INTEGER NOT NULL,
+  date DATE NOT NULL,
+  message_count INTEGER NOT NULL DEFAULT 0,
+  CONSTRAINT fk_user FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
+  CONSTRAINT fk_pet FOREIGN KEY(pet_id) REFERENCES pets(id) ON DELETE CASCADE,
+  CONSTRAINT unique_user_pet_date UNIQUE(user_id, pet_id, date)
+); 

@@ -26,6 +26,23 @@ export interface PetCareRecommendations {
   };
 }
 
+function deepMergeWithFallback<T>(ai: Partial<T>, fallback: T): T {
+  if (typeof fallback !== 'object' || fallback === null) return ai as T;
+  const result: any = Array.isArray(fallback) ? [] : {};
+  for (const key in fallback) {
+    if (Object.prototype.hasOwnProperty.call(ai, key) && ai[key] !== undefined && ai[key] !== null) {
+      if (typeof fallback[key] === 'object' && fallback[key] !== null && !Array.isArray(fallback[key])) {
+        result[key] = deepMergeWithFallback(ai[key], fallback[key]);
+      } else {
+        result[key] = ai[key];
+      }
+    } else {
+      result[key] = fallback[key];
+    }
+  }
+  return result as T;
+}
+
 export async function generatePetCareRecommendations(
   name: string,
   breed: string,
@@ -33,6 +50,29 @@ export async function generatePetCareRecommendations(
   gender: string,
   species: string = "dog"
 ): Promise<PetCareRecommendations> {
+  const fallback: PetCareRecommendations = {
+    trainingPlan: {
+      basicCommands: ["sit", "stay", "come", "down"],
+      weeklySchedule: ["Daily 10-15 minute sessions", "Focus on one command per week"],
+      tips: ["Use positive reinforcement", "Keep sessions short and fun"]
+    },
+    breedingAdvice: {
+      optimalAge: "2-3 years old",
+      healthScreening: ["Hip dysplasia", "Eye examination", "Genetic testing"],
+      considerations: ["Breed-specific health issues", "Temperament evaluation"]
+    },
+    careGuidelines: {
+      dailyRoutine: ["Morning walk", "Feeding schedule", "Evening playtime"],
+      nutritionTips: ["High-quality protein", "Age-appropriate portions"],
+      exerciseRequirements: "30-60 minutes daily",
+      healthMonitoring: ["Weight checks", "Dental health", "Coat condition"]
+    },
+    medicalRecommendations: {
+      vaccinationSchedule: ["Core vaccines at 6-8 weeks", "Booster shots", "Annual check-ups"],
+      commonHealthIssues: ["Joint problems", "Dental issues", "Skin conditions"],
+      preventiveCare: ["Regular vet visits", "Parasite prevention", "Dental care"]
+    }
+  };
   try {
     const prompt = `Generate comprehensive care recommendations for a ${age}-year-old ${gender} ${breed} ${species} named ${name}. 
 
@@ -137,36 +177,21 @@ Format the response as JSON with the exact structure:
     });
     console.log('[Gemini] raw response:', response.text);
     if (response.text) {
-      const recommendations: PetCareRecommendations = JSON.parse(response.text);
-      return recommendations;
+      let aiData: Partial<PetCareRecommendations> = {};
+      try {
+        aiData = JSON.parse(response.text);
+      } catch (e) {
+        console.error('[Gemini] JSON parse error:', e);
+      }
+      // Merge AI response with fallback for missing fields
+      const merged = deepMergeWithFallback(aiData, fallback);
+      return merged;
     } else {
       throw new Error("Empty response from Gemini API");
     }
   } catch (error) {
     console.error('[Gemini] generatePetCareRecommendations error:', error);
     // Return fallback recommendations
-    return {
-      trainingPlan: {
-        basicCommands: ["sit", "stay", "come", "down"],
-        weeklySchedule: ["Daily 10-15 minute sessions", "Focus on one command per week"],
-        tips: ["Use positive reinforcement", "Keep sessions short and fun"]
-      },
-      breedingAdvice: {
-        optimalAge: "2-3 years old",
-        healthScreening: ["Hip dysplasia", "Eye examination", "Genetic testing"],
-        considerations: ["Breed-specific health issues", "Temperament evaluation"]
-      },
-      careGuidelines: {
-        dailyRoutine: ["Morning walk", "Feeding schedule", "Evening playtime"],
-        nutritionTips: ["High-quality protein", "Age-appropriate portions"],
-        exerciseRequirements: "30-60 minutes daily",
-        healthMonitoring: ["Weight checks", "Dental health", "Coat condition"]
-      },
-      medicalRecommendations: {
-        vaccinationSchedule: ["Core vaccines at 6-8 weeks", "Booster shots", "Annual check-ups"],
-        commonHealthIssues: ["Joint problems", "Dental issues", "Skin conditions"],
-        preventiveCare: ["Regular vet visits", "Parasite prevention", "Dental care"]
-      }
-    };
+    return fallback;
   }
 }
