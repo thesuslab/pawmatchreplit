@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -107,6 +107,23 @@ export const comments = pgTable("comments", {
   timestamp: timestamp("timestamp").defaultNow(),
 });
 
+export const petTasks = pgTable("pet_tasks", {
+  id: serial("id").primaryKey(),
+  petId: integer("pet_id").notNull(),
+  title: text("title").notNull(),
+  status: text("status").default("pending"), // pending, in_progress, complete
+  source: text("source").default("user"), // ai or user
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const aiChatUsage = pgTable("ai_chat_usage", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  petId: integer("pet_id"),
+  dashboardState: jsonb("dashboard_state"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
@@ -149,6 +166,10 @@ export const insertMatchSchema = createInsertSchema(matches).omit({
   timestamp: true,
 });
 
+export const insertPetTaskSchema = createInsertSchema(petTasks).omit({ id: true, createdAt: true });
+
+export const insertAIChatUsageSchema = createInsertSchema(aiChatUsage).omit({ id: true, createdAt: true });
+
 // Types
 export type User = typeof users.$inferSelect;
 export type Pet = typeof pets.$inferSelect;
@@ -158,6 +179,8 @@ export type Like = typeof likes.$inferSelect;
 export type Follow = typeof follows.$inferSelect;
 export type Comment = typeof comments.$inferSelect;
 export type Match = typeof matches.$inferSelect;
+export type PetTask = typeof petTasks.$inferSelect;
+export type AIChatUsage = typeof aiChatUsage.$inferSelect;
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type InsertPet = z.infer<typeof insertPetSchema>;
@@ -167,3 +190,5 @@ export type InsertLike = z.infer<typeof insertLikeSchema>;
 export type InsertFollow = z.infer<typeof insertFollowSchema>;
 export type InsertComment = z.infer<typeof insertCommentSchema>;
 export type InsertMatch = z.infer<typeof insertMatchSchema>;
+export type InsertPetTask = z.infer<typeof insertPetTaskSchema>;
+export type InsertAIChatUsage = z.infer<typeof insertAIChatUsageSchema>;

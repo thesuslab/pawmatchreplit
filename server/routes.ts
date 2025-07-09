@@ -4,7 +4,8 @@ import { storage } from "./storage";
 import { generatePetCareRecommendations } from "./gemini";
 import { 
   insertUserSchema, insertPetSchema, insertPostSchema, insertMedicalRecordSchema,
-  insertLikeSchema, insertFollowSchema, insertCommentSchema, insertMatchSchema
+  insertLikeSchema, insertFollowSchema, insertCommentSchema, insertMatchSchema,
+  insertPetTaskSchema
 } from "@shared/schema";
 import { z } from "zod";
 import { sendMail } from "./index";
@@ -15,6 +16,21 @@ import fs from 'fs';
 import type { Request, Response } from 'express';
 import type { StorageEngine } from 'multer';
 import express from 'express';
+import { aiChatUsage } from "@shared/schema";
+import { eq, and } from "drizzle-orm";
+import { pgTable, serial, integer, text, jsonb, timestamp } from "drizzle-orm/pg-core";
+
+export const aiChatUsage = pgTable("ai_chat_usage", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  petId: integer("pet_id"),
+  dashboardState: jsonb("dashboard_state"),
+  createdAt: timestamp("created_at").defaultNow(),
+  // ...other fields as needed
+});
+
+export type AIChatUsage = typeof aiChatUsage.$inferSelect;
+export type InsertAIChatUsage = typeof aiChatUsage.$inferInsert;
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -698,6 +714,95 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // Notify the new owner
     sendUserNotification(app, newOwnerId, { type: 'added_as_owner', message: `You were added as a pet owner by user ${addedByUserId}.` });
     res.json({ message: 'Owner added and notification delivered (if user is connected)' });
+  });
+
+  // Pet Task Endpoints
+  app.get("/api/pets/:petId/tasks", async (req, res) => {
+    try {
+      const petId = parseInt(req.params.petId);
+      if (!Number.isInteger(petId)) return res.status(400).json({ message: "Invalid pet ID" });
+      const tasks = await storage.getTasksByPetId(petId);
+      res.json(tasks);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch tasks", error });
+    }
+  });
+
+  app.post("/api/pets/:petId/tasks", async (req, res) => {
+    try {
+      const petId = parseInt(req.params.petId);
+      if (!Number.isInteger(petId)) return res.status(400).json({ message: "Invalid pet ID" });
+      const parsed = insertPetTaskSchema.safeParse({ ...req.body, petId });
+      if (!parsed.success) return res.status(400).json({ message: "Invalid task data", error: parsed.error });
+      const task = await storage.createTask(parsed.data);
+      res.status(201).json(task);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to create task", error });
+    }
+  });
+
+  app.patch("/api/tasks/:taskId", async (req, res) => {
+    try {
+      const taskId = parseInt(req.params.taskId);
+      if (!Number.isInteger(taskId)) return res.status(400).json({ message: "Invalid task ID" });
+      const updates = req.body;
+      // Optionally validate updates with zod
+      const updated = await storage.updateTask(taskId, updates);
+      if (!updated) return res.status(404).json({ message: "Task not found" });
+      res.json(updated);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update task", error });
+    }
+  });
+
+  app.delete("/api/tasks/:taskId", async (req, res) => {
+    try {
+      const taskId = parseInt(req.params.taskId);
+      if (!Number.isInteger(taskId)) return res.status(400).json({ message: "Invalid task ID" });
+      const deleted = await storage.deleteTask(taskId);
+      if (!deleted) return res.status(404).json({ message: "Task not found" });
+      res.json({ message: "Task deleted" });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete task", error });
+    }
+  });
+
+  // Upsert dashboard state for a user/pet
+  app.post("/api/ai/dashboard_state", async (req, res) => {
+    const { userId, petId, dashboardState } = req.body;
+    if (!userId || !dashboardState) {
+      return res.status(400).json({ message: "Missing userId or dashboardState" });
+    }
+
+    // Check if a record exists for this user/pet
+    const existing = await db.select().from(aiChatUsage)
+      .where(and(eq(aiChatUsage.userId, userId), eq(aiChatUsage.petId, petId)))
+      .limit(1);
+
+    let result;
+    if (existing.length > 0) {
+      // Update existing
+      [result] = await db.update(aiChatUsage)
+        .set({ dashboardState, createdAt: new Date() })
+        .where(and(eq(aiChatUsage.userId, userId), eq(aiChatUsage.petId, petId)))
+        .returning();
+    } else {
+      // Insert new
+      [result] = await db.insert(aiChatUsage)
+        .values({ userId, petId, dashboardState, createdAt: new Date() })
+        .returning();
+    }
+    res.json(result);
+  });
+
+  // Get dashboard state for a user/pet
+  app.get("/api/ai/dashboard_state", async (req, res) => {
+    const { userId, petId } = req.query;
+    if (!userId) return res.status(400).json({ message: "Missing userId" });
+    const result = await db.select().from(aiChatUsage)
+      .where(and(eq(aiChatUsage.userId, Number(userId)), eq(aiChatUsage.petId, Number(petId))))
+      .limit(1);
+    res.json(result[0] || null);
   });
 
   const httpServer = createServer(app);

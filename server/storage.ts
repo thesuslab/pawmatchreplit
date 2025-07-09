@@ -2,7 +2,8 @@ import {
   users, pets, posts, medicalRecords, likes, follows, comments, matches,
   type User, type Pet, type Post, type MedicalRecord, type Like, type Follow, type Comment, type Match,
   type InsertUser, type InsertPet, type InsertPost, type InsertMedicalRecord, 
-  type InsertLike, type InsertFollow, type InsertComment, type InsertMatch
+  type InsertLike, type InsertFollow, type InsertComment, type InsertMatch,
+  type PetTask, type InsertPetTask
 } from "@shared/schema";
 
 export interface IStorage {
@@ -56,6 +57,12 @@ export interface IStorage {
   createMatch(match: InsertMatch): Promise<Match>;
   getMatchesByUserId(userId: number): Promise<Match[]>;
   getPotentialMatches(userId: number): Promise<Pet[]>;
+
+  // Pet task operations
+  getTasksByPetId(petId: number): Promise<PetTask[]>;
+  createTask(task: InsertPetTask): Promise<PetTask>;
+  updateTask(id: number, updates: Partial<PetTask>): Promise<PetTask | undefined>;
+  deleteTask(id: number): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
@@ -67,6 +74,7 @@ export class MemStorage implements IStorage {
   private follows: Map<string, Follow>;
   private comments: Map<number, Comment>;
   private matches: Map<string, Match>;
+  private petTasks: Map<number, PetTask> = new Map();
   private currentUserId: number;
   private currentPetId: number;
   private currentPostId: number;
@@ -75,6 +83,7 @@ export class MemStorage implements IStorage {
   private currentFollowId: number;
   private currentCommentId: number;
   private currentMatchId: number;
+  private currentTaskId: number = 1;
 
   constructor() {
     this.users = new Map();
@@ -85,6 +94,7 @@ export class MemStorage implements IStorage {
     this.follows = new Map();
     this.comments = new Map();
     this.matches = new Map();
+    this.petTasks = new Map();
     this.currentUserId = 1;
     this.currentPetId = 1;
     this.currentPostId = 1;
@@ -405,11 +415,39 @@ export class MemStorage implements IStorage {
     
     return potentialMatches.filter(pet => !swipedPetIds.has(pet.id));
   }
+
+  // Pet task operations
+  async getTasksByPetId(petId: number): Promise<PetTask[]> {
+    return Array.from(this.petTasks.values()).filter(task => task.petId === petId);
+  }
+  async createTask(task: InsertPetTask): Promise<PetTask> {
+    const id = this.currentTaskId++;
+    const newTask: PetTask = {
+      ...task,
+      id,
+      status: task.status ?? 'pending',
+      source: task.source ?? 'user',
+      createdAt: new Date(),
+    } as PetTask;
+    this.petTasks.set(id, newTask);
+    return newTask;
+  }
+  async updateTask(id: number, updates: Partial<PetTask>): Promise<PetTask | undefined> {
+    const task = this.petTasks.get(id);
+    if (!task) return undefined;
+    const updated = { ...task, ...updates };
+    this.petTasks.set(id, updated);
+    return updated;
+  }
+  async deleteTask(id: number): Promise<boolean> {
+    return this.petTasks.delete(id);
+  }
 }
 
 // Database Storage Implementation
 import { db } from "./db";
 import { eq, and, or, desc, sql } from "drizzle-orm";
+import { petTasks } from "@shared/schema";
 
 export class DatabaseStorage implements IStorage {
   async getUser(id: number): Promise<User | undefined> {
@@ -680,6 +718,23 @@ export class DatabaseStorage implements IStorage {
         eq(pets.isPublic, true),
         excludedIds.length > 0 ? sql`${pets.id} NOT IN (${sql.join(excludedIds.map(id => sql`${id}`), sql`, `)})` : sql`1=1`
       ));
+  }
+
+  // Pet task operations
+  async getTasksByPetId(petId: number): Promise<PetTask[]> {
+    return await db.select().from(petTasks).where(eq(petTasks.petId, petId));
+  }
+  async createTask(task: InsertPetTask): Promise<PetTask> {
+    const [newTask] = await db.insert(petTasks).values(task).returning();
+    return newTask;
+  }
+  async updateTask(id: number, updates: Partial<PetTask>): Promise<PetTask | undefined> {
+    const [updated] = await db.update(petTasks).set(updates).where(eq(petTasks.id, id)).returning();
+    return updated || undefined;
+  }
+  async deleteTask(id: number): Promise<boolean> {
+    const result = await db.delete(petTasks).where(eq(petTasks.id, id));
+    return !!result.rowCount;
   }
 }
 

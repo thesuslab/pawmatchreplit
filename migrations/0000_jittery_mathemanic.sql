@@ -117,4 +117,15 @@ CREATE TABLE IF NOT EXISTS ai_chat_usage (
   CONSTRAINT fk_user FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
   CONSTRAINT fk_pet FOREIGN KEY(pet_id) REFERENCES pets(id) ON DELETE CASCADE,
   CONSTRAINT unique_user_pet_date UNIQUE(user_id, pet_id, date)
+);
+
+CREATE TABLE IF NOT EXISTS pet_tasks (
+  id SERIAL PRIMARY KEY,
+  pet_id INTEGER NOT NULL REFERENCES pets(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  status TEXT DEFAULT 'pending',
+  source TEXT DEFAULT 'user',
+  created_at TIMESTAMP DEFAULT NOW()
 ); 
+
+ALTER TABLE ai_chat_usage ADD COLUMN dashboard_state JSONB;
