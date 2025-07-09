@@ -164,6 +164,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let allUsers = [];
       try {
         allUsers = await storage.getAllUsers();
+        console.log('DEBUG /api/users/search allUsers:', allUsers);
         if (!Array.isArray(allUsers)) {
           console.error('getAllUsers did not return an array:', allUsers);
           return res.status(500).json({ message: "Database error: getAllUsers did not return array" });

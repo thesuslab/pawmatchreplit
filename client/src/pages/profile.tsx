@@ -93,6 +93,7 @@ export default function Profile({ user: initialUser }: ProfileProps) {
           </h2>
           <p className="text-gray-600">@{user.username || user.name}</p>
           <p className="text-sm text-gray-500 mt-1">{userPets.length} pets</p>
+          <p className="text-xs text-blue-500 mt-1">User ID: {user.id}</p>
         </div>
       </div>
       {/* Add Pet Button */}

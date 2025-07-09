@@ -43,7 +43,9 @@ export default function EditPetModal({ isOpen, onClose, pet, userId }: EditPetMo
   const [coOwnerQuery, setCoOwnerQuery] = useState('');
   const [coOwnerResults, setCoOwnerResults] = useState<any[]>([]);
   const [coOwnerId, setCoOwnerId] = useState(pet.coOwnerId || '');
-  const [isSearching, setIsSearching] = useState(false);
+  const [coOwnerUser, setCoOwnerUser] = useState<any>(null);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [pendingId, setPendingId] = useState('');
 
   // Debounced search for co-owner
   useEffect(() => {
@@ -68,6 +70,41 @@ export default function EditPetModal({ isOpen, onClose, pet, userId }: EditPetMo
     }, 400);
     return () => clearTimeout(timeout);
   }, [coOwnerQuery]);
+
+  // Fetch user by ID when a new ID is entered
+  useEffect(() => {
+    if (pendingId && pendingId !== String(coOwnerId)) {
+      fetch(`/api/users/${pendingId}`)
+        .then(res => res.ok ? res.json() : null)
+        .then(user => {
+          if (user) {
+            setCoOwnerUser(user);
+            setShowConfirm(true);
+          } else {
+            setCoOwnerUser(null);
+            setShowConfirm(false);
+          }
+        });
+    } else {
+      setShowConfirm(false);
+    }
+  }, [pendingId]);
+
+  const handleCoOwnerIdChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setPendingId(value);
+  };
+
+  const confirmCoOwner = () => {
+    setCoOwnerId(pendingId);
+    setShowConfirm(false);
+  };
+
+  const removeCoOwner = () => {
+    setCoOwnerId('');
+    setCoOwnerUser(null);
+    setPendingId('');
+  };
 
   const updatePetMutation = useMutation({
     mutationFn: async (petData: any) => {
@@ -360,37 +397,30 @@ export default function EditPetModal({ isOpen, onClose, pet, userId }: EditPetMo
           </div>
           {/* Co-owner linking */}
           <div>
-            <Label htmlFor="co-owner">Co-owner (username or email)</Label>
+            <Label htmlFor="co-owner">Co-owner (ID)</Label>
             <Input
               id="co-owner"
-              type="text"
-              value={coOwnerQuery}
-              onChange={e => {
-                setCoOwnerQuery(e.target.value);
-                setCoOwnerId(''); // Reset co-owner selection if query changes
-              }}
-              placeholder="Search by username or email"
+              type="number"
+              value={pendingId}
+              onChange={handleCoOwnerIdChange}
+              placeholder="Enter co-owner user ID"
               autoComplete="off"
+              disabled={!!coOwnerId}
             />
-            {isSearching && <div className="text-xs text-gray-500 mt-1">Searching...</div>}
-            {coOwnerResults.length > 0 && (
-              <div className="border rounded bg-white mt-1 max-h-32 overflow-y-auto z-10">
-                {coOwnerResults.map((user) => (
-                  <div
-                    key={user.id}
-                    className={`px-3 py-2 cursor-pointer hover:bg-pink-100 ${coOwnerId === user.id ? 'bg-pink-50' : ''}`}
-                    onClick={() => { setCoOwnerId(user.id); setCoOwnerQuery(user.username || user.email); setCoOwnerResults([]); }}
-                  >
-                    {user.name} <span className="text-xs text-gray-500">({user.username || user.email})</span>
-                  </div>
-                ))}
+            {showConfirm && coOwnerUser && (
+              <div className="text-xs text-blue-600 mt-1">
+                Are you sure you want to add <b>{coOwnerUser.username || coOwnerUser.name || coOwnerUser.email}</b> as a co-owner of this pet?
+                <div className="flex gap-2 mt-1">
+                  <Button type="button" size="sm" onClick={confirmCoOwner}>Yes</Button>
+                  <Button type="button" size="sm" variant="outline" onClick={removeCoOwner}>No</Button>
+                </div>
               </div>
             )}
-            {coOwnerQuery && !isSearching && coOwnerResults.length === 0 && (
-              <div className="text-xs text-gray-500 mt-1">No users found.</div>
-            )}
-            {coOwnerId && coOwnerQuery && (
-              <div className="text-xs text-green-600 mt-1">Co-owner selected: {coOwnerQuery}</div>
+            {coOwnerId && coOwnerUser && !showConfirm && (
+              <div className="text-xs text-green-600 mt-1 flex items-center gap-2">
+                Co-owner: <b>{coOwnerUser.username || coOwnerUser.name || coOwnerUser.email}</b>
+                <Button type="button" size="sm" variant="destructive" onClick={removeCoOwner}>Remove</Button>
+              </div>
             )}
           </div>
           {/* Submit Button */}
