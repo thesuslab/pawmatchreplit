@@ -9,14 +9,66 @@ import {
 import { z } from "zod";
 import { sendMail } from "./index";
 import { registrationEmailTemplate, forgotPasswordEmailTemplate } from "./email-templates";
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
+import type { Request, Response } from 'express';
+import type { StorageEngine } from 'multer';
+import express from 'express';
 
 const loginSchema = z.object({
   email: z.string().email(),
   password: z.string(),
 });
 
+// Helper to send a WebSocket notification to a user
+function sendUserNotification(app: Express, userId: number, payload: any): void {
+  const userConnections = app.get('userConnections');
+  if (userConnections && userConnections.has(String(userId))) {
+    const ws = userConnections.get(String(userId));
+    if (ws && ws.readyState === 1) {
+      ws.send(JSON.stringify(payload));
+    }
+  }
+  // Explicitly return nothing
+  return;
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   
+  // Serve static files from /uploads
+  const uploadsDir = path.join(process.cwd(), 'uploads');
+  if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir);
+  app.use(
+    '/uploads',
+    (req, res, next) => {
+      res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+      next();
+    },
+    express.static(uploadsDir)
+  );
+
+  // Multer setup
+  const uploadStorage: StorageEngine = multer.diskStorage({
+    destination: function (req: Request, file: Express.Multer.File, cb: (error: Error | null, destination: string) => void) {
+      cb(null, uploadsDir);
+    },
+    filename: function (req: Request, file: Express.Multer.File, cb: (error: Error | null, filename: string) => void) {
+      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+      cb(null, uniqueSuffix + '-' + file.originalname.replace(/\s+/g, '_'));
+    }
+  });
+  const upload = multer({ storage: uploadStorage });
+
+  // Image upload endpoint
+  app.post('/api/upload', upload.single('image'), (req: Request, res: Response) => {
+    if (!req.file) {
+      return res.status(400).json({ message: 'No file uploaded' });
+    }
+    const url = `/uploads/${req.file.filename}`;
+    res.json({ url });
+  });
+
   // Auth routes
   app.post("/api/auth/register", async (req, res) => {
     try {
@@ -104,6 +156,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // User search endpoint for co-owner selection
+  app.get("/api/users/search", async (req, res) => {
+    try {
+      const q = (req.query.q as string)?.toLowerCase() || "";
+      if (!q) return res.json([]);
+      let allUsers = [];
+      try {
+        allUsers = await storage.getAllUsers();
+        if (!Array.isArray(allUsers)) {
+          console.error('getAllUsers did not return an array:', allUsers);
+          return res.status(500).json({ message: "Database error: getAllUsers did not return array" });
+        }
+      } catch (err) {
+        const stack = (typeof err === 'object' && err && 'stack' in err) ? (err as any).stack : undefined;
+        console.error('Error in getAllUsers:', err, stack);
+        return res.status(500).json({ message: "Failed to fetch users", error: String(err), stack });
+      }
+      const results = allUsers.filter((user: any) =>
+        (user.username && user.username.toLowerCase().includes(q)) ||
+        (user.email && user.email.toLowerCase().includes(q))
+      ).map((user: any) => ({
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        name: user.name || user.firstName || user.username || user.email
+      }));
+      res.json(results);
+    } catch (error) {
+      const stack = (typeof error === 'object' && error && 'stack' in error) ? (error as any).stack : undefined;
+      console.error('User search error:', error, stack);
+      res.status(500).json({ message: "Failed to search users", error: String(error), stack });
+    }
+  });
+
   // Pet routes
   app.get("/api/pets/user/:userId", async (req, res) => {
     try {
@@ -133,36 +219,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ownerId: userId, // Map userId to ownerId as per schema
         userId: userId, // Keep userId for backwards compatibility
       });
-      
       const pet = await storage.createPet(petData);
-      
-      // Generate AI-powered care recommendations
-      try {
-        const recommendations = await generatePetCareRecommendations(
-          pet.name,
-          pet.breed,
-          pet.age,
-          pet.gender,
-          pet.species || "dog"
-        );
-        
-        // Store recommendations as health tips
-        const updatedPet = await storage.updatePet(pet.id, {
-          healthTips: [
-            `Training: ${recommendations.trainingPlan.basicCommands.join(', ')}`,
-            `Exercise: ${recommendations.careGuidelines.exerciseRequirements}`,
-            `Nutrition: ${recommendations.careGuidelines.nutritionTips.join(', ')}`,
-            `Health monitoring: ${recommendations.medicalRecommendations.commonHealthIssues.join(', ')}`,
-            `Breeding age: ${recommendations.breedingAdvice.optimalAge}`
-          ],
-          dietRecommendations: recommendations.careGuidelines.nutritionTips.join('; ')
-        });
-        
-        res.json({ ...updatedPet, aiRecommendations: recommendations });
-      } catch (aiError) {
-        console.error("AI recommendations failed:", aiError);
-        res.json(pet); // Return pet without AI recommendations if AI fails
-      }
+      res.json(pet);
     } catch (error) {
       res.status(400).json({ message: "Invalid pet data", error });
     }
@@ -195,14 +253,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/pets/:id", async (req, res) => {
     try {
       const id = parseInt(req.params.id);
-      const updates = req.body;
-      const pet = await storage.updatePet(id, updates);
+      let updates = req.body;
+      // Sanitize date fields: convert empty string to null
+      ['lastCheckup', 'lastVisit', 'nextVaccination'].forEach(field => {
+        if (updates[field] === '') updates[field] = null;
+      });
+      console.log('PUT /api/pets/:id', { id, updates });
+      let pet = await storage.updatePet(id, updates);
       if (!pet) {
-        return res.status(404).json({ message: "Pet not found" });
+        console.error('Pet not found or update failed', { id, updates });
+        return res.status(404).json({ message: "Pet not found or update failed" });
       }
+      pet = await storage.getPet(id);
       res.json(pet);
     } catch (error) {
-      res.status(400).json({ message: "Failed to update pet", error });
+      const stack = (typeof error === 'object' && error && 'stack' in error) ? (error as any).stack : undefined;
+      console.error('Failed to update pet:', error, stack, 'Request body:', req.body);
+      res.status(400).json({ message: "Failed to update pet", error: String(error), stack });
     }
   });
 
@@ -596,10 +663,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
+      // Emit notification to user
+      sendUserNotification(app, id, { type: 'profile_update', message: 'Your profile was updated successfully.' });
       res.json(user);
     } catch (error) {
       res.status(400).json({ message: "Failed to update user", error });
     }
+  });
+
+  // Test notification endpoint
+  app.post('/api/notify', (req, res) => {
+    const { userId, message, type = 'test' } = req.body;
+    if (!userId || !message) {
+      return res.status(400).json({ message: 'userId and message are required' });
+    }
+    sendUserNotification(app, userId, { type, message });
+    res.json({ message: 'Notification sent (if user is connected)' });
+  });
+
+  // Example: emit notification for new connection request (stub)
+  app.post('/api/connections/request', async (req, res) => {
+    // ... your connection request logic ...
+    const { toUserId, fromUserId } = req.body;
+    // Notify the recipient
+    sendUserNotification(app, toUserId, { type: 'connection_request', message: `You have a new connection request from user ${fromUserId}.` });
+    res.json({ message: 'Connection request sent and notification delivered (if user is connected)' });
+  });
+
+  // Example: emit notification for added as pet owner (stub)
+  app.post('/api/pets/:petId/add-owner', async (req, res) => {
+    // ... your add owner logic ...
+    const { newOwnerId, addedByUserId } = req.body;
+    // Notify the new owner
+    sendUserNotification(app, newOwnerId, { type: 'added_as_owner', message: `You were added as a pet owner by user ${addedByUserId}.` });
+    res.json({ message: 'Owner added and notification delivered (if user is connected)' });
   });
 
   const httpServer = createServer(app);

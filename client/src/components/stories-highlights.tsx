@@ -5,8 +5,10 @@ interface StoriesHighlightsProps {
 }
 
 export default function StoriesHighlights({ pets }: StoriesHighlightsProps) {
+  if (!pets || pets.length === 0) return null;
   return (
     <div className="bg-white px-4 py-3 border-b border-gray-100">
+      <div className="mb-2 text-xs font-semibold text-gray-700">Your Pets</div>
       <div className="flex space-x-4 overflow-x-auto scrollbar-hide">
         {pets.map((pet) => (
           <div key={pet.id} className="flex flex-col items-center space-y-1 flex-shrink-0">
@@ -28,13 +30,6 @@ export default function StoriesHighlights({ pets }: StoriesHighlightsProps) {
             <span className="text-xs text-gray-600 max-w-[64px] truncate">{pet.name}</span>
           </div>
         ))}
-        
-        <div className="flex flex-col items-center space-y-1 flex-shrink-0">
-          <div className="w-16 h-16 rounded-full bg-gray-200 border-2 border-dashed border-gray-300 flex items-center justify-center">
-            <Plus className="w-6 h-6 text-gray-500" />
-          </div>
-          <span className="text-xs text-gray-500">Add Story</span>
-        </div>
       </div>
     </div>
   );

@@ -3,6 +3,7 @@ import BottomNavigation from "@/components/bottom-navigation";
 import PetProfileCard from "@/components/pet-profile-card";
 import { Search } from "lucide-react";
 import { useEffect, useState } from 'react';
+import PullToRefresh from 'react-simple-pull-to-refresh';
 
 interface DiscoverProps {
   user: any;
@@ -47,31 +48,36 @@ export default function Discover({ user }: DiscoverProps) {
         </div>
       </header>
 
-      {/* Main Content */}
-      <div className="flex-1 overflow-y-auto pb-20 p-4">
-        {isLoading ? (
-          <div className="flex items-center justify-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-pink-500"></div>
-          </div>
-        ) : filteredPets.length > 0 ? (
-          <div className="space-y-6">
-            {filteredPets.map((pet: any) => (
-              <PetProfileCard
-                key={pet.id}
-                pet={pet}
-                currentUser={user}
-                isInitiallyFollowing={false}
-                onFollowChange={handleFollowChange}
-              />
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-8">
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">No pets to discover</h3>
-            <p className="text-gray-600">Check back later for new furry friends!</p>
-          </div>
-        )}
-      </div>
+      {/* Main Content with Pull to Refresh */}
+      <PullToRefresh onRefresh={async () => {
+        await queryClient.invalidateQueries({ queryKey: ['/api/pets/public'] });
+        await queryClient.invalidateQueries({ queryKey: ['/api/follows/user', user.id] });
+      }}>
+        <div className="flex-1 overflow-y-auto pb-20 p-4">
+          {isLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-pink-500"></div>
+            </div>
+          ) : filteredPets.length > 0 ? (
+            <div className="space-y-6">
+              {filteredPets.map((pet: any) => (
+                <PetProfileCard
+                  key={pet.id}
+                  pet={pet}
+                  currentUser={user}
+                  isInitiallyFollowing={false}
+                  onFollowChange={handleFollowChange}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">No pets to discover</h3>
+              <p className="text-gray-600">Check back later for new furry friends!</p>
+            </div>
+          )}
+        </div>
+      </PullToRefresh>
 
       <BottomNavigation currentPage="discover" />
     </div>

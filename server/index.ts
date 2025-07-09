@@ -6,6 +6,7 @@ import 'dotenv/config';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import nodemailer from 'nodemailer';
+import { WebSocketServer } from 'ws';
 
 // These two lines are needed if you're using ES modules
 const __filename = fileURLToPath(import.meta.url);
@@ -69,6 +70,31 @@ export async function sendMail({ to, subject, html }: { to: string, subject: str
 (async () => {
   const server = await registerRoutes(app);
 
+  /*
+  // --- WebSocket server setup ---
+  const wss = new WebSocketServer({ server });
+  // Map to track userId -> ws connection
+  const userConnections = new Map();
+
+  wss.on('connection', (ws, req) => {
+    // For now, expect userId as a query param (e.g., ws://host:5000?userId=123)
+    const url = new URL(req.url || '', `http://${req.headers.host}`);
+    const userId = url.searchParams.get('userId');
+    if (userId) {
+      userConnections.set(userId, ws);
+      ws.on('close', () => {
+        userConnections.delete(userId);
+      });
+    }
+    ws.send(JSON.stringify({ type: 'connected', message: 'WebSocket connection established.' }));
+  });
+
+  // Make available for notification logic
+  app.set('wss', wss);
+  app.set('userConnections', userConnections);
+  // --- End WebSocket server setup ---
+  */
+
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
@@ -85,13 +111,6 @@ export async function sendMail({ to, subject, html }: { to: string, subject: str
   } else {
     serveStatic(app);
   }
-
-  // Serve index.html for all non-API routes
-  app.get('*', (req, res) => {
-    // Only serve index.html for non-API routes
-    if (req.path.startsWith('/api')) return res.status(404).json({ message: 'API route not found' });
-    res.sendFile(path.join(__dirname, '../client/dist/index.html'));
-  });
 
   // ALWAYS serve the app on port 5000
   // this serves both the API and the client.
@@ -111,5 +130,12 @@ export async function sendMail({ to, subject, html }: { to: string, subject: str
         log("Database seeding failed: " + String(error));
       }
     }
+  });
+
+  // Move this catch-all route to the very end
+  app.get('*', (req, res) => {
+    // Only serve index.html for non-API routes
+    if (req.path.startsWith('/api')) return res.status(404).json({ message: 'API route not found' });
+    res.sendFile(path.join(__dirname, '../client/dist/index.html'));
   });
 })();

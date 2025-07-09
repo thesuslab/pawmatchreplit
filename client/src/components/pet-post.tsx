@@ -12,6 +12,7 @@ interface PetPostProps {
 
 export default function PetPost({ post, currentUser }: PetPostProps) {
   const [isLiked, setIsLiked] = useState(false);
+  const [likeCount, setLikeCount] = useState(post.likesCount || 0);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -26,16 +27,29 @@ export default function PetPost({ post, currentUser }: PetPostProps) {
         });
       }
     },
-    onSuccess: () => {
-      setIsLiked(!isLiked);
-      queryClient.invalidateQueries({ queryKey: ['/api/posts/feed', currentUser.id] });
+    onMutate: () => {
+      // Optimistically update like count
+      setIsLiked((prev) => {
+        const newLiked = !prev;
+        setLikeCount((count: number) => count + (newLiked ? 1 : -1));
+        return newLiked;
+      });
     },
     onError: () => {
+      // Revert optimistic update on error
+      setIsLiked((prev) => {
+        const newLiked = !prev;
+        setLikeCount((count: number) => count + (newLiked ? 1 : -1));
+        return newLiked;
+      });
       toast({
         title: "Error",
         description: "Failed to update like",
         variant: "destructive",
       });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/posts/feed', currentUser.id] });
     },
   });
 
@@ -137,21 +151,14 @@ export default function PetPost({ post, currentUser }: PetPostProps) {
                 className={`w-6 h-6 ${isLiked ? "fill-red-500 text-red-500" : "text-gray-700"}`}
               />
             </button>
-            <button className="hover:scale-110 transition-transform">
-              <MessageCircle className="w-6 h-6 text-gray-700" />
-            </button>
-            <button className="hover:scale-110 transition-transform">
-              <Send className="w-6 h-6 text-gray-700" />
-            </button>
+            {/* Comment and send buttons removed */}
           </div>
-          <button className="hover:scale-110 transition-transform">
-            <Bookmark className="w-6 h-6 text-gray-700" />
-          </button>
+          {/* Bookmark button removed */}
         </div>
 
         {/* Likes Count */}
         <p className="font-semibold text-sm mb-2">
-          {post.likesCount || 0} likes
+          {likeCount} likes
         </p>
 
         {/* Post Caption */}
@@ -160,13 +167,6 @@ export default function PetPost({ post, currentUser }: PetPostProps) {
             <span className="font-semibold">{post.pet?.name || "Pet"}</span>
             <span className="ml-1">{post.caption}</span>
           </p>
-        )}
-
-        {/* View Comments */}
-        {post.commentsCount > 0 && (
-          <button className="text-gray-500 text-sm mt-1">
-            View all {post.commentsCount} comments
-          </button>
         )}
 
         {/* Time */}

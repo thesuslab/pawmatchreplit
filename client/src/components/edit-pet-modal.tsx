@@ -9,6 +9,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import imageCompression from 'browser-image-compression';
 import { X, Trash2, Plus } from 'lucide-react';
 import { apiRequest } from '@/lib/queryClient';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 
 interface EditPetModalProps {
   isOpen: boolean;
@@ -20,10 +21,17 @@ interface EditPetModalProps {
 export default function EditPetModal({ isOpen, onClose, pet, userId }: EditPetModalProps) {
   const [formData, setFormData] = useState({
     name: pet.name || '',
+    species: pet.species || '',
     breed: pet.breed || '',
     age: pet.age?.toString() || '',
+    weight: pet.weight || '',
+    color: pet.color || '',
     gender: pet.gender || '',
     bio: pet.bio || '',
+    microchipId: pet.microchipId || '',
+    nextVaccination: pet.nextVaccination || '',
+    lastCheckup: pet.lastCheckup || '',
+    lastVisit: pet.lastVisit || '',
     isPublic: pet.isPublic ?? true,
     profileImage: pet.profileImage || '',
     photos: pet.photos || [],
@@ -94,28 +102,27 @@ export default function EditPetModal({ isOpen, onClose, pet, userId }: EditPetMo
       });
       return;
     }
-    updatePetMutation.mutate({ ...formData, coOwnerId });
+    // If coOwnerId is set, include it in the update
+    updatePetMutation.mutate({ ...formData, coOwnerId: coOwnerId || undefined });
   };
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
     try {
-      const compressedFile = await imageCompression(file, {
-        maxSizeMB: 0.3,
-        maxWidthOrHeight: 1200,
-        useWebWorker: true,
+      const formData = new FormData();
+      formData.append('image', file);
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
       });
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const result = e.target?.result as string;
-        setFormData((prev) => ({ ...prev, profileImage: result }));
-      };
-      reader.readAsDataURL(compressedFile);
+      if (!res.ok) throw new Error('Failed to upload image');
+      const data = await res.json();
+      setFormData((prev) => ({ ...prev, profileImage: data.url }));
     } catch (error) {
       toast({
         title: 'Error',
-        description: 'Failed to compress image',
+        description: 'Failed to upload image',
         variant: 'destructive',
       });
     }
@@ -125,9 +132,36 @@ export default function EditPetModal({ isOpen, onClose, pet, userId }: EditPetMo
     setFormData((prev) => ({ ...prev, profileImage: '' }));
   };
 
+  const handlePhotosUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files) return;
+    const urls: string[] = [];
+    for (let i = 0; i < files.length; i++) {
+      const formData = new FormData();
+      formData.append('image', files[i]);
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+      if (res.ok) {
+        const data = await res.json();
+        urls.push(data.url);
+      }
+    }
+    setFormData((prev) => ({ ...prev, photos: [...(prev.photos || []), ...urls] }));
+  };
+
+  const speciesOptions = [
+    { value: 'Dog', label: 'Dog' },
+    { value: 'Cat', label: 'Cat' },
+    { value: 'Bird', label: 'Bird' },
+    { value: 'Reptile', label: 'Reptile' },
+    { value: 'Other', label: 'Other' },
+  ];
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md overflow-y-auto max-h-[80vh]">
         <DialogHeader>
           <DialogTitle>Edit Pet</DialogTitle>
         </DialogHeader>
@@ -169,6 +203,22 @@ export default function EditPetModal({ isOpen, onClose, pet, userId }: EditPetMo
               onChange={handleFileUpload}
               className="hidden"
             />
+          </div>
+          {/* Additional Photos */}
+          <div>
+            <Label htmlFor="photos">Additional Photos</Label>
+            <Input
+              id="photos"
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={handlePhotosUpload}
+            />
+            <div className="flex flex-wrap gap-2 mt-2">
+              {formData.photos && formData.photos.map((url: string, idx: number) => (
+                <img key={idx} src={url} alt="Pet" className="w-16 h-16 object-cover rounded" />
+              ))}
+            </div>
           </div>
           {/* Pet Name */}
           <div>
@@ -231,6 +281,83 @@ export default function EditPetModal({ isOpen, onClose, pet, userId }: EditPetMo
               rows={3}
             />
           </div>
+          {/* Species */}
+          <div>
+            <Label htmlFor="species">Species</Label>
+            <Select value={formData.species} onValueChange={(value) => setFormData({ ...formData, species: value })}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select species" />
+              </SelectTrigger>
+              <SelectContent>
+                {speciesOptions.map(opt => (
+                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          {/* Weight */}
+          <div>
+            <Label htmlFor="weight">Weight</Label>
+            <Input
+              id="weight"
+              type="text"
+              value={formData.weight}
+              onChange={(e) => setFormData({ ...formData, weight: e.target.value })}
+              placeholder="Enter weight (e.g. 12kg)"
+            />
+          </div>
+          {/* Color */}
+          <div>
+            <Label htmlFor="color">Color</Label>
+            <Input
+              id="color"
+              type="text"
+              value={formData.color}
+              onChange={(e) => setFormData({ ...formData, color: e.target.value })}
+              placeholder="Enter color"
+            />
+          </div>
+          {/* Microchip ID */}
+          <div>
+            <Label htmlFor="microchipId">Microchip ID</Label>
+            <Input
+              id="microchipId"
+              type="text"
+              value={formData.microchipId}
+              onChange={(e) => setFormData({ ...formData, microchipId: e.target.value })}
+              placeholder="Enter microchip ID"
+            />
+          </div>
+          {/* Next Vaccination */}
+          <div>
+            <Label htmlFor="nextVaccination">Next Vaccination</Label>
+            <Input
+              id="nextVaccination"
+              type="date"
+              value={formData.nextVaccination}
+              onChange={(e) => setFormData({ ...formData, nextVaccination: e.target.value })}
+            />
+          </div>
+          {/* Last Checkup */}
+          <div>
+            <Label htmlFor="lastCheckup">Last Checkup</Label>
+            <Input
+              id="lastCheckup"
+              type="date"
+              value={formData.lastCheckup}
+              onChange={(e) => setFormData({ ...formData, lastCheckup: e.target.value })}
+            />
+          </div>
+          {/* Last Visit */}
+          <div>
+            <Label htmlFor="lastVisit">Last Visit</Label>
+            <Input
+              id="lastVisit"
+              type="date"
+              value={formData.lastVisit}
+              onChange={(e) => setFormData({ ...formData, lastVisit: e.target.value })}
+            />
+          </div>
           {/* Co-owner linking */}
           <div>
             <Label htmlFor="co-owner">Co-owner (username or email)</Label>
@@ -238,7 +365,10 @@ export default function EditPetModal({ isOpen, onClose, pet, userId }: EditPetMo
               id="co-owner"
               type="text"
               value={coOwnerQuery}
-              onChange={e => setCoOwnerQuery(e.target.value)}
+              onChange={e => {
+                setCoOwnerQuery(e.target.value);
+                setCoOwnerId(''); // Reset co-owner selection if query changes
+              }}
               placeholder="Search by username or email"
               autoComplete="off"
             />
@@ -256,8 +386,11 @@ export default function EditPetModal({ isOpen, onClose, pet, userId }: EditPetMo
                 ))}
               </div>
             )}
-            {coOwnerId && (
-              <div className="text-xs text-green-600 mt-1">Co-owner selected</div>
+            {coOwnerQuery && !isSearching && coOwnerResults.length === 0 && (
+              <div className="text-xs text-gray-500 mt-1">No users found.</div>
+            )}
+            {coOwnerId && coOwnerQuery && (
+              <div className="text-xs text-green-600 mt-1">Co-owner selected: {coOwnerQuery}</div>
             )}
           </div>
           {/* Submit Button */}

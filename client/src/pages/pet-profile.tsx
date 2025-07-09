@@ -5,6 +5,7 @@ import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 import { useState } from 'react';
 import { useRoute, useLocation } from 'wouter';
+import EditPetModal from '@/components/edit-pet-modal';
 
 export default function PetProfilePage() {
   const [match, params] = useRoute('/pet/:petId');
@@ -13,6 +14,7 @@ export default function PetProfilePage() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [isFollowing, setIsFollowing] = useState(false);
+  const [showEditPetModal, setShowEditPetModal] = useState(false);
 
   // Fetch pet info
   const { data: pet, isLoading: petLoading } = useQuery({
@@ -23,6 +25,17 @@ export default function PetProfilePage() {
       return res.json();
     },
     enabled: !!petId,
+  });
+
+  // Fetch owner info (if pet is loaded)
+  const { data: owner, isLoading: ownerLoading } = useQuery({
+    queryKey: pet && pet.ownerId ? ['/api/users', pet.ownerId] : [],
+    queryFn: async () => {
+      const res = await fetch(`/api/users/${pet.ownerId}`);
+      if (!res.ok) throw new Error('Failed to fetch owner');
+      return res.json();
+    },
+    enabled: !!pet && !!pet.ownerId,
   });
 
   // Fetch pet posts
@@ -103,6 +116,22 @@ export default function PetProfilePage() {
           {followMutation.isPending ? '...' : isPetFollowed ? 'Unfollow' : 'Follow'}
         </Button>
       </div>
+      {/* Owner Info */}
+      {owner && (
+        <div className="flex items-center space-x-3 p-4 border-b">
+          <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-100">
+            {owner.avatar ? (
+              <img src={owner.avatar} alt={owner.name} className="w-full h-full object-cover" />
+            ) : (
+              <span className="text-xl font-bold text-white bg-pink-400 w-full h-full flex items-center justify-center">{owner.name?.[0]}</span>
+            )}
+          </div>
+          <div>
+            <div className="font-semibold">{owner.name}</div>
+            <div className="text-xs text-gray-500">@{owner.username}</div>
+          </div>
+        </div>
+      )}
       <div className="border-t border-gray-200 mt-4">
         <h3 className="text-lg font-semibold p-4">Posts</h3>
         {postsLoading ? (
@@ -131,6 +160,19 @@ export default function PetProfilePage() {
       <Button className="absolute top-4 left-4" variant="ghost" onClick={() => window.history.back()}>
         Back
       </Button>
+      {/* Edit Pet Modal */}
+      {showEditPetModal && pet && (
+        <EditPetModal
+          isOpen={showEditPetModal}
+          onClose={() => {
+            setShowEditPetModal(false);
+            queryClient.invalidateQueries({ queryKey: ['/api/pets', petId] });
+            if (pet.ownerId) queryClient.invalidateQueries({ queryKey: ['/api/users', pet.ownerId] });
+          }}
+          pet={pet}
+          userId={pet.ownerId}
+        />
+      )}
     </div>
   );
 } 

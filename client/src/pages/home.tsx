@@ -1,11 +1,20 @@
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import BottomNavigation from "@/components/bottom-navigation";
 import StoriesHighlights from "@/components/stories-highlights";
 import PetPost from "@/components/pet-post";
 import AddPetModal from "@/components/add-pet-modal";
 import CreatePostModal from "@/components/create-post-modal";
-import { Heart, MessageCircle, Send, Plus } from "lucide-react";
+import { Heart, MessageCircle, Send, Plus, Bell } from "lucide-react";
+import { useState, useEffect, useRef } from 'react';
+import PullToRefresh from 'react-simple-pull-to-refresh';
+
+// Define Notification type
+interface Notification {
+  type: string;
+  message: string;
+  read: boolean;
+  timestamp: number;
+}
 
 interface HomeProps {
   user: any;
@@ -14,6 +23,38 @@ interface HomeProps {
 export default function Home({ user }: HomeProps) {
   const [showAddPetModal, setShowAddPetModal] = useState(false);
   const [showCreatePostModal, setShowCreatePostModal] = useState(false);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const wsRef = useRef<WebSocket | null>(null);
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    // Connect to WebSocket for notifications
+    if (!user?.id) return;
+    const ws = new WebSocket(`ws://localhost:5000?userId=${user.id}`);
+    wsRef.current = ws;
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type && data.type !== 'connected') {
+          setNotifications((prev) => [{ ...data, read: false, timestamp: Date.now() }, ...prev]);
+        }
+      } catch {}
+    };
+    return () => ws.close();
+  }, [user?.id]);
+
+  const unreadCount = notifications.filter(n => !n.read).length;
+
+  const handleBellClick = () => {
+    setShowNotifications((prev) => !prev);
+    setNotifications((prev) => prev.map(n => ({ ...n, read: true })));
+  };
+
+  const handleChatClick = () => {
+    // Placeholder for chat UI
+    alert('Chat feature coming soon!');
+  };
 
   const { data: posts = [], isLoading } = useQuery({
     queryKey: ['/api/posts/feed', user.id],
@@ -35,6 +76,23 @@ export default function Home({ user }: HomeProps) {
 
   return (
     <div className="max-w-md mx-auto bg-white min-h-screen relative">
+      {/* Notification dropdown/modal */}
+      {showNotifications && (
+        <div className="absolute right-4 top-16 bg-white border rounded-lg shadow-lg w-72 z-50 max-h-96 overflow-y-auto">
+          <div className="p-2 font-semibold border-b">Notifications</div>
+          {notifications.length === 0 ? (
+            <div className="p-4 text-gray-500">No notifications</div>
+          ) : (
+            notifications.map((n, i) => (
+              <div key={i} className="p-3 border-b last:border-b-0 text-sm">
+                <div className="font-medium">{n.type.replace(/_/g, ' ')}</div>
+                <div>{n.message}</div>
+                <div className="text-xs text-gray-400 mt-1">{new Date(n.timestamp).toLocaleString()}</div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
       {/* Header */}
       <header className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between sticky top-0 z-50">
         <div className="flex items-center space-x-3">
@@ -44,38 +102,39 @@ export default function Home({ user }: HomeProps) {
           <h1 className="text-xl font-bold text-gray-900">PawConnect</h1>
         </div>
         <div className="flex items-center space-x-4">
-          <button className="text-gray-600 hover:text-gray-900 transition-colors">
-            <Heart className="w-6 h-6" />
+          <button className="relative" onClick={handleBellClick} aria-label="Notifications">
+            <Bell className="w-6 h-6" />
+            {unreadCount > 0 && (
+              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full px-1.5 py-0.5">{unreadCount}</span>
+            )}
           </button>
-          <button className="text-gray-600 hover:text-gray-900 transition-colors">
+          <button onClick={handleChatClick} aria-label="Chat">
             <MessageCircle className="w-6 h-6" />
-          </button>
-          <button className="text-gray-600 hover:text-gray-900 transition-colors">
-            <Send className="w-6 h-6" />
           </button>
         </div>
       </header>
-
       {/* Stories Highlights */}
       <StoriesHighlights pets={userPets} />
 
-      {/* Main Content */}
-      <div className="flex-1 overflow-y-auto pb-20">
-        {isLoading ? (
-          <div className="flex items-center justify-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-pink-500"></div>
-          </div>
-        ) : posts.length > 0 ? (
-          posts.map((post: any) => (
-            <PetPost key={post.id} post={post} currentUser={user} />
-          ))
-        ) : (
-          <div className="text-center py-8 px-4">
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">No posts yet!</h3>
-            <p className="text-gray-600 mb-4">Follow some pets or create your first post to get started.</p>
-          </div>
-        )}
-      </div>
+      {/* Main Content with Pull to Refresh */}
+      <PullToRefresh onRefresh={async () => queryClient.invalidateQueries({ queryKey: ['/api/posts/feed', user.id] })}>
+        <div className="flex-1 overflow-y-auto pb-20">
+          {isLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-pink-500"></div>
+            </div>
+          ) : posts.length > 0 ? (
+            posts.map((post: any) => (
+              <PetPost key={post.id} post={post} currentUser={user} />
+            ))
+          ) : (
+            <div className="text-center py-8 px-4">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">No posts yet!</h3>
+              <p className="text-gray-600 mb-4">Follow some pets or create your first post to get started.</p>
+            </div>
+          )}
+        </div>
+      </PullToRefresh>
 
       {/* Floating Add Buttons */}
       <div className="fixed bottom-24 right-4 flex flex-col space-y-3 z-40">

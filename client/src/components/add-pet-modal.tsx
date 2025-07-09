@@ -21,8 +21,10 @@ interface AddPetModalProps {
 export default function AddPetModal({ isOpen, onClose, userId }: AddPetModalProps) {
   const [formData, setFormData] = useState({
     name: "",
+    species: "",
     breed: "",
     age: "",
+    weight: "",
     gender: "",
     bio: "",
     isPublic: true,
@@ -63,8 +65,10 @@ export default function AddPetModal({ isOpen, onClose, userId }: AddPetModalProp
       onClose();
       setFormData({
         name: "",
+        species: "",
         breed: "",
         age: "",
+        weight: "",
         gender: "",
         bio: "",
         isPublic: true,
@@ -136,10 +140,18 @@ export default function AddPetModal({ isOpen, onClose, userId }: AddPetModalProp
     }));
   };
 
+  const speciesOptions = [
+    { value: 'Dog', label: 'Dog' },
+    { value: 'Cat', label: 'Cat' },
+    { value: 'Bird', label: 'Bird' },
+    { value: 'Reptile', label: 'Reptile' },
+    { value: 'Other', label: 'Other' },
+  ];
+
   return (
     <>
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md overflow-y-auto max-h-[80vh]">
         <DialogHeader>
           <DialogTitle>Add New Pet</DialogTitle>
         </DialogHeader>
@@ -204,6 +216,21 @@ export default function AddPetModal({ isOpen, onClose, userId }: AddPetModalProp
             />
           </div>
 
+          {/* Species */}
+          <div>
+            <Label htmlFor="species">Species *</Label>
+            <Select value={formData.species} onValueChange={(value) => setFormData({ ...formData, species: value })}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select species" />
+              </SelectTrigger>
+              <SelectContent>
+                {speciesOptions.map(opt => (
+                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
           {/* Pet Breed */}
           <div>
             <Label htmlFor="breed">Breed *</Label>
@@ -243,6 +270,18 @@ export default function AddPetModal({ isOpen, onClose, userId }: AddPetModalProp
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          {/* Weight */}
+          <div>
+            <Label htmlFor="weight">Weight</Label>
+            <Input
+              id="weight"
+              type="text"
+              value={formData.weight}
+              onChange={(e) => setFormData({ ...formData, weight: e.target.value })}
+              placeholder="Enter weight (e.g. 12kg)"
+            />
           </div>
 
           {/* Bio */}

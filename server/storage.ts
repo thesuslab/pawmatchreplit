@@ -12,6 +12,7 @@ export interface IStorage {
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: number, updates: Partial<User>): Promise<User | undefined>;
+  getAllUsers(): Promise<User[]>;
 
   // Pet operations
   getPet(id: number): Promise<Pet | undefined>;
@@ -134,6 +135,10 @@ export class MemStorage implements IStorage {
     const updatedUser = { ...user, ...updates };
     this.users.set(id, updatedUser);
     return updatedUser;
+  }
+
+  async getAllUsers(): Promise<User[]> {
+    return Array.from(this.users.values());
   }
 
   // Pet operations
@@ -439,6 +444,12 @@ export class DatabaseStorage implements IStorage {
     return user || undefined;
   }
 
+  async getAllUsers(): Promise<User[]> {
+    // Ensure this always returns a User[]
+    const usersArr = await db.select().from(users);
+    return usersArr as User[];
+  }
+
   // Pet operations
   async getPet(id: number): Promise<Pet | undefined> {
     const [pet] = await db.select().from(pets).where(eq(pets.id, id));
@@ -484,8 +495,16 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getPostsForFeed(userId: number): Promise<Post[]> {
-    // Return all posts from all users, ordered by timestamp descending
-    return await db.select().from(posts).orderBy(desc(posts.timestamp));
+    // Only return posts from pets the user owns or follows
+    const userPets = await this.getPetsByUserId(userId);
+    const userPetIds = userPets.map(pet => pet.id);
+    const follows = await this.getFollowsByUserId(userId);
+    const followedPetIds = follows.map(follow => follow.followedPetId);
+    const relevantPetIds = [...userPetIds, ...followedPetIds];
+    if (relevantPetIds.length === 0) return [];
+    return await db.select().from(posts)
+      .where(sql`${posts.petId} IN (${sql.join(relevantPetIds.map(id => sql`${id}`), sql`, `)})`)
+      .orderBy(desc(posts.timestamp));
   }
 
   async createPost(insertPost: InsertPost): Promise<Post> {

@@ -72,11 +72,21 @@ export default function CreatePostModal({ isOpen, onClose, userId }: CreatePostM
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    // Remove base64 data if present
+    if (formData.imageUrl && formData.imageUrl.startsWith('data:image/')) {
+      setFormData(prev => ({ ...prev, imageUrl: '' }));
+      toast({
+        title: 'Error',
+        description: 'Please upload a photo (not base64)',
+        variant: 'destructive',
+      });
+      return;
+    }
     if (!formData.petId || !formData.imageUrl) {
       toast({
-        title: "Error",
-        description: "Please select a pet and add a photo",
-        variant: "destructive",
+        title: 'Error',
+        description: 'Please select a pet and add a photo',
+        variant: 'destructive',
       });
       return;
     }
@@ -86,27 +96,23 @@ export default function CreatePostModal({ isOpen, onClose, userId }: CreatePostM
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
-
-    // Compress the image before reading
     try {
-      const compressedFile = await imageCompression(file, {
-        maxSizeMB: 1,
-        maxWidthOrHeight: 1200,
-        useWebWorker: true,
+      const formDataData = new FormData();
+      formDataData.append('image', file);
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formDataData,
       });
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const result = e.target?.result as string;
-        setFormData(prev => ({
-          ...prev,
-          imageUrl: result
-        }));
-      };
-      reader.readAsDataURL(compressedFile);
+      if (!res.ok) throw new Error('Failed to upload image');
+      const data = await res.json();
+      setFormData(prev => ({
+        ...prev,
+        imageUrl: data.url
+      }));
     } catch (error) {
       toast({
         title: 'Error',
-        description: 'Failed to compress image',
+        description: 'Failed to upload image',
         variant: 'destructive',
       });
     }
