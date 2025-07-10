@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import BottomNavigation from "@/components/bottom-navigation";
 import PetProfileCard from "@/components/pet-profile-card";
+import { Carousel, CarouselContent, CarouselItem } from "@/components/ui/carousel";
 import AICareTab from "@/components/ai-care-tab";
 import { useToast } from "@/hooks/use-toast";
 
@@ -30,16 +31,21 @@ export default function Care({ user }: CareProps) {
       </header>
 
       {/* Pet Selection Row */}
-      <div className="flex overflow-x-auto gap-4 px-4 py-3 scrollbar-hide">
-        {userPets.map((pet: any) => (
-          <div
-            key={pet.id}
-            className={`min-w-[180px] max-w-[200px] cursor-pointer transition-transform ${selectedPet?.id === pet.id ? 'ring-2 ring-pink-400 scale-105' : 'hover:scale-105'}`}
-            onClick={() => setSelectedPetId(pet.id)}
-          >
-            <PetProfileCard pet={pet} currentUser={user} />
-          </div>
-        ))}
+      <div className="px-4 py-3">
+        <Carousel opts={{ align: "center", loop: false }}>
+          <CarouselContent>
+            {userPets.map((pet: any) => (
+              <CarouselItem key={pet.id} className="px-2">
+                <div
+                  className={`max-w-[320px] mx-auto ${selectedPet?.id === pet.id ? 'ring-2 ring-pink-400 scale-105' : ''}`}
+                  onClick={() => setSelectedPetId(pet.id)}
+                >
+                  <PetProfileCard pet={pet} currentUser={user} expandable={false} />
+                </div>
+              </CarouselItem>
+            ))}
+          </CarouselContent>
+        </Carousel>
       </div>
 
       {/* AI Care Tab for Selected Pet */}

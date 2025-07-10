@@ -4,55 +4,55 @@
 
 :root {
   --background: hsl(0, 0%, 100%);
-  --foreground: hsl(240, 7%, 15%);
-  --muted: hsl(240, 5%, 96%);
-  --muted-foreground: hsl(240, 4%, 56%);
+  --foreground: hsl(240, 6%, 10%);
+  --muted: hsl(240, 5%, 97%);
+  --muted-foreground: hsl(240, 5%, 50%);
   --popover: hsl(0, 0%, 100%);
-  --popover-foreground: hsl(240, 7%, 15%);
+  --popover-foreground: hsl(240, 6%, 10%);
   --card: hsl(0, 0%, 100%);
-  --card-foreground: hsl(240, 7%, 15%);
-  --border: hsl(240, 6%, 90%);
-  --input: hsl(240, 6%, 90%);
-  --primary: hsl(339, 82%, 52%);
+  --card-foreground: hsl(240, 6%, 10%);
+  --border: hsl(240, 5%, 88%);
+  --input: hsl(240, 5%, 88%);
+  --primary: hsl(278, 80%, 60%); /* elegant purple */
   --primary-foreground: hsl(0, 0%, 100%);
-  --secondary: hsl(207, 90%, 54%);
+  --secondary: hsl(28, 85%, 55%); /* warm orange accent */
   --secondary-foreground: hsl(0, 0%, 100%);
-  --accent: hsl(240, 5%, 96%);
-  --accent-foreground: hsl(240, 7%, 15%);
-  --destructive: hsl(0, 84%, 60%);
+  --accent: hsl(240, 5%, 95%);
+  --accent-foreground: hsl(240, 6%, 10%);
+  --destructive: hsl(0, 80%, 60%);
   --destructive-foreground: hsl(0, 0%, 100%);
-  --ring: hsl(240, 7%, 15%);
-  --radius: 0.5rem;
-  
-  /* Custom PawConnect colors */
-  --text-primary: hsl(240, 7%, 15%);
-  --text-secondary: hsl(240, 4%, 56%);
+  --ring: hsl(278, 80%, 60%);
+  --radius: 0.75rem;
+
+  /* PawConnect brand refinement */
+  --text-primary: hsl(240, 6%, 10%);
+  --text-secondary: hsl(240, 5%, 50%);
   --surface: hsl(0, 0%, 100%);
   --background-app: hsl(240, 5%, 98%);
-  --success: hsl(122, 39%, 49%);
-  --warning: hsl(36, 100%, 50%);
+  --success: hsl(142, 60%, 45%);
+  --warning: hsl(38, 90%, 55%);
 }
 
 .dark {
-  --background: hsl(240, 10%, 4%);
+  --background: hsl(240, 10%, 8%);
   --foreground: hsl(0, 0%, 98%);
-  --muted: hsl(240, 4%, 16%);
+  --muted: hsl(240, 5%, 15%);
   --muted-foreground: hsl(240, 5%, 65%);
-  --popover: hsl(240, 10%, 4%);
+  --popover: hsl(240, 10%, 8%);
   --popover-foreground: hsl(0, 0%, 98%);
-  --card: hsl(240, 10%, 4%);
+  --card: hsl(240, 10%, 10%);
   --card-foreground: hsl(0, 0%, 98%);
-  --border: hsl(240, 4%, 16%);
-  --input: hsl(240, 4%, 16%);
-  --primary: hsl(339, 82%, 52%);
+  --border: hsl(240, 5%, 20%);
+  --input: hsl(240, 5%, 20%);
+  --primary: hsl(278, 80%, 60%);
   --primary-foreground: hsl(0, 0%, 100%);
-  --secondary: hsl(207, 90%, 54%);
+  --secondary: hsl(28, 85%, 55%);
   --secondary-foreground: hsl(0, 0%, 100%);
-  --accent: hsl(240, 4%, 16%);
+  --accent: hsl(240, 5%, 20%);
   --accent-foreground: hsl(0, 0%, 98%);
-  --destructive: hsl(0, 63%, 31%);
+  --destructive: hsl(0, 70%, 45%);
   --destructive-foreground: hsl(0, 0%, 98%);
-  --ring: hsl(240, 5%, 84%);
+  --ring: hsl(278, 80%, 60%);
 }
 
 @layer base {
@@ -70,8 +70,12 @@
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
-  
+
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
+  }
+
+  .glass {
+    @apply backdrop-blur-sm bg-white/60 dark:bg-white/10;
   }
 }

@@ -1,12 +1,11 @@
 import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { Sparkles, Flame, Plus, Check, Clock, Calendar } from 'lucide-react';
-import { Trash2 } from 'lucide-react';
+import { Sparkles, Flame, Plus, Check, Clock, Calendar, ChevronDown, ChevronRight, Trash2 } from 'lucide-react';
 
 interface TaskModule {
   id: string;
-  category: string; // training, health, care, etc.
+  category: string;
   title: string;
   description: string;
   priority: 'high' | 'medium' | 'low';
@@ -21,10 +20,11 @@ interface TaskDashboardProps {
   modules: TaskModule[];
   streak: number;
   aiTaskCount: number;
-  progress: number; // 0-100
+  progress: number;
   onAddTask: () => void;
   onToggleSubtask: (moduleId: string, subtaskIdx: number) => void;
   onDeleteTask: (taskId: string) => void;
+  compact?: boolean;
 }
 
 function getPriorityColor(priority: string) {
@@ -36,79 +36,114 @@ function getPriorityColor(priority: string) {
   }
 }
 
-export default function TaskDashboard({ modules, streak, aiTaskCount, progress, onAddTask, onToggleSubtask, onDeleteTask }: TaskDashboardProps) {
+export default function TaskDashboard({
+  modules,
+  streak,
+  aiTaskCount,
+  progress,
+  onAddTask,
+  onToggleSubtask,
+  onDeleteTask
+}: TaskDashboardProps) {
+
+  const [expandedTaskIds, setExpandedTaskIds] = useState<Set<string>>(new Set());
+
+  const toggleExpand = (taskId: string) => {
+    setExpandedTaskIds(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(taskId)) {
+        newSet.delete(taskId);
+      } else {
+        newSet.add(taskId);
+      }
+      return newSet;
+    });
+  };
+
   return (
-    <Card className="mb-4 bg-white/90 border-2 border-pink-100 shadow-md">
+    <Card className="mb-4 bg-white/90 border border-purple-100 shadow-sm">
       <CardContent className="p-4">
-        {/* Compact Stats Row */}
+        {/* Stats */}
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-4">
             <CircularProgress percent={progress} />
-            <div className="flex flex-col items-center">
-              <div className="text-lg font-bold text-blue-600">{progress}%</div>
-              <div className="text-xs text-gray-500">Completed</div>
-            </div>
-            <div className="flex flex-col items-center">
-              <div className="text-lg font-bold text-orange-600">{streak}</div>
-              <div className="text-xs text-gray-500">Day Streak</div>
-            </div>
-            <div className="flex flex-col items-center">
-              <div className="text-lg font-bold text-purple-600">{aiTaskCount}</div>
-              <div className="text-xs text-gray-500">AI Tasks</div>
-            </div>
+            <StatItem value={progress + '%'} label="Completed" color="text-blue-600" />
+            <StatItem value={streak} label="Day Streak" color="text-orange-600" />
+            <StatItem value={aiTaskCount} label="AI Tasks" color="text-purple-600" />
           </div>
           <button
-            className="flex items-center gap-1 text-pink-600 text-xs px-3 py-2 bg-pink-50 rounded-lg hover:bg-pink-100 font-semibold"
+            className="flex items-center gap-1 text-purple-600 text-xs px-3 py-2 bg-purple-50 rounded-lg hover:bg-purple-100 font-semibold transition-colors"
             onClick={onAddTask}
           >
             <Plus className="w-4 h-4" /> Add Task
           </button>
         </div>
-        {/* Today's Tasks */}
+
+        {/* Tasks */}
         <div>
           <div className="font-semibold text-base mb-2">Today's Tasks</div>
           {modules.length === 0 ? (
             <div className="text-xs text-gray-500">No tasks for today! 🎉</div>
           ) : (
-            <div className="space-y-4">
-              {modules.map((mod) => (
-                <div key={mod.id} className="rounded-xl border border-gray-100 bg-gray-50 p-4">
-                  <div className="flex items-center justify-between mb-1">
-                    <div className="flex items-center gap-2">
-                      <Badge variant="secondary" className="capitalize text-xs px-2 py-1 mr-2">{mod.category}</Badge>
-                      <span className={`px-2 py-1 text-xs font-medium rounded ${getPriorityColor(mod.priority)}`}>{mod.priority}</span>
-                      <span className="text-xs text-blue-500 ml-2">AI: {Math.round(mod.aiConfidence * 100)}%</span>
-                    </div>
-                    <button
-                      className="ml-2 p-1 rounded hover:bg-red-100 text-red-600 transition-colors"
-                      title="Delete Task"
-                      onClick={() => onDeleteTask(mod.id)}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                  <div className="font-bold text-gray-800 text-sm mb-1">{mod.title}</div>
-                  <div className="text-xs text-gray-600 mb-2">{mod.description}</div>
-                  <div className="flex items-center gap-4 text-xs text-gray-500 mb-2">
-                    <span><Clock className="inline w-4 h-4 mr-1" />{mod.estimatedTime}</span>
-                    <span><Calendar className="inline w-4 h-4 mr-1" />{mod.frequency}</span>
-                  </div>
-                  <div className="space-y-1">
-                    {mod.subtasks.map((sub, idx) => (
-                      <div
-                        key={idx}
-                        className={`flex items-center gap-2 p-2 rounded-lg cursor-pointer transition-all ${mod.completedSubtasks[idx] ? 'bg-green-100 border border-green-200' : 'bg-white border border-gray-200 hover:border-gray-300'}`}
-                        onClick={() => onToggleSubtask(mod.id, idx)}
-                      >
-                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${mod.completedSubtasks[idx] ? 'bg-green-600 border-green-600 text-white' : 'border-gray-300'}`}>
-                          {mod.completedSubtasks[idx] && <Check size={12} />}
-                        </div>
-                        <span className={`text-sm ${mod.completedSubtasks[idx] ? 'line-through text-gray-500' : 'text-gray-700'}`}>{sub}</span>
+            <div className="space-y-3">
+              {modules.map((mod) => {
+                const isExpanded = expandedTaskIds.has(mod.id);
+                return (
+                  <div
+                    key={mod.id}
+                    className="rounded-lg border border-gray-200 bg-gray-50 p-3 transition-shadow hover:shadow-sm"
+                  >
+                    <div className="flex items-center justify-between cursor-pointer" onClick={() => toggleExpand(mod.id)}>
+                      <div className="flex items-center gap-2">
+                        <button
+                          aria-label={isExpanded ? "Collapse task" : "Expand task"}
+                          className="text-gray-500 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-300 rounded"
+                          onClick={(e) => { e.stopPropagation(); toggleExpand(mod.id); }}
+                          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleExpand(mod.id); } }}
+                        >
+                          {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                        </button>
+                        <Badge variant="secondary" className="capitalize text-xs px-2 py-0.5">{mod.category}</Badge>
+                        <span className={`px-2 py-0.5 text-xs font-medium rounded ${getPriorityColor(mod.priority)}`}>{mod.priority}</span>
+                        <span className="text-xs text-blue-500 ml-1">AI: {Math.round(mod.aiConfidence * 100)}%</span>
                       </div>
-                    ))}
+                      <button
+                        className="p-1 rounded hover:bg-red-50 text-red-500 transition-colors"
+                        title="Delete Task"
+                        onClick={(e) => { e.stopPropagation(); onDeleteTask(mod.id); }}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <div className="mt-1">
+                      <div className="font-medium text-gray-800 text-sm">{mod.title}</div>
+                      <div className="text-xs text-gray-600">{mod.description}</div>
+                      <div className="flex items-center gap-4 text-xs text-gray-500 mt-1">
+                        <span><Clock className="inline w-4 h-4 mr-0.5" /> {mod.estimatedTime}</span>
+                        <span><Calendar className="inline w-4 h-4 mr-0.5" /> {mod.frequency}</span>
+                      </div>
+                    </div>
+                    {isExpanded && (
+                      <div className="mt-2 space-y-1 transition-all ease-in-out">
+                        {mod.subtasks.map((sub, idx) => (
+                          <div
+                            key={idx}
+                            className={`flex items-center gap-2 p-2 rounded-md cursor-pointer transition-all ${mod.completedSubtasks[idx] ? 'bg-green-100 border border-green-200' : 'bg-white border border-gray-200 hover:border-gray-300'}`}
+                            onClick={() => onToggleSubtask(mod.id, idx)}
+                          >
+                            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${mod.completedSubtasks[idx] ? 'bg-green-600 border-green-600 text-white' : 'border-gray-300'}`}>
+                              {mod.completedSubtasks[idx] && <Check size={12} />}
+                            </div>
+                            <span className={`text-sm ${mod.completedSubtasks[idx] ? 'line-through text-gray-500' : 'text-gray-700'}`}>
+                              {sub}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
@@ -117,8 +152,16 @@ export default function TaskDashboard({ modules, streak, aiTaskCount, progress, 
   );
 }
 
+function StatItem({ value, label, color }: { value: string | number, label: string, color: string }) {
+  return (
+    <div className="flex flex-col items-center">
+      <div className={`text-lg font-bold ${color}`}>{value}</div>
+      <div className="text-xs text-gray-500">{label}</div>
+    </div>
+  );
+}
+
 function CircularProgress({ percent }: { percent: number }) {
-  // SVG circle progress
   const radius = 18;
   const stroke = 4;
   const normalizedRadius = radius - stroke / 2;
@@ -127,7 +170,7 @@ function CircularProgress({ percent }: { percent: number }) {
   return (
     <svg height={radius * 2} width={radius * 2} className="mr-2">
       <circle
-        stroke="#f472b6"
+        stroke="#a78bfa"
         fill="transparent"
         strokeWidth={stroke}
         r={normalizedRadius}
@@ -136,11 +179,11 @@ function CircularProgress({ percent }: { percent: number }) {
         style={{ opacity: 0.2 }}
       />
       <circle
-        stroke="#f472b6"
+        stroke="#a78bfa"
         fill="transparent"
         strokeWidth={stroke}
         strokeDasharray={circumference + ' ' + circumference}
-        style={{ strokeDashoffset, transition: 'stroke-dashoffset 0.5s', filter: 'drop-shadow(0 0 4px #f472b6)' }}
+        style={{ strokeDashoffset, transition: 'stroke-dashoffset 0.5s ease', filter: 'drop-shadow(0 0 3px #a78bfa)' }}
         r={normalizedRadius}
         cx={radius}
         cy={radius}
@@ -150,12 +193,12 @@ function CircularProgress({ percent }: { percent: number }) {
         y="50%"
         textAnchor="middle"
         dy=".3em"
-        fontSize="1rem"
-        fill="#db2777"
+        fontSize="0.75rem"
+        fill="#6d28d9"
         fontWeight="bold"
       >
         {percent}%
       </text>
     </svg>
   );
-} 
+}

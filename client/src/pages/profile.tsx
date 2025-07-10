@@ -6,10 +6,14 @@ import MedicalRecordsTab from "@/components/medical-records-tab";
 import AICareTab from "@/components/ai-care-tab";
 import EditPetModal from '@/components/edit-pet-modal';
 import EditProfileModal from '@/components/edit-profile-modal';
-import { Settings, Plus, Grid3X3, Heart, FileText, Bot, Pencil } from "lucide-react";
+import {  Grid3X3 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { motion, AnimatePresence } from "framer-motion";
+import { Calendar, Activity, Shield, User, ChevronDown, ChevronUp, QrCode, ChevronRight, Plus, Settings, Heart, FileText, Bot, FlaskConical, Edit2, Camera, PawPrint, BadgeInfo, Hash, Cake, Utensils, ShieldCheck, User as UserIcon, Calendar as CalendarIcon, Weight } from 'lucide-react';
+import { useRef } from 'react';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface ProfileProps {
   user: any;
@@ -76,188 +80,188 @@ export default function Profile({ user: initialUser }: ProfileProps) {
         </div>
       </header>
 
-      {/* Profile Info */}
-      <div className="flex items-center space-x-4 mb-6">
-        <div className="w-20 h-20 bg-gradient-to-br from-pink-500 to-blue-500 rounded-full flex items-center justify-center overflow-hidden">
-          {user.avatar ? (
-            <img src={user.avatar} alt="Profile" className="w-full h-full object-cover rounded-full" />
-          ) : (
-            <span className="text-2xl font-bold text-white">
-              {user.name ? user.name[0] : (user.firstName && user.lastName ? user.firstName[0] + user.lastName[0] : user.email[0])}
-            </span>
-          )}
-        </div>
-        <div className="flex-1">
-          <h2 className="text-xl font-bold text-gray-900">
-            {user.name || (user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : user.email)}
-          </h2>
-          <p className="text-gray-600">@{user.username || user.name}</p>
-          <p className="text-sm text-gray-500 mt-1">{userPets.length} pets</p>
-          <p className="text-xs text-blue-500 mt-1">User ID: {user.id}</p>
-        </div>
+      {/* Horizontal Pet Selector */}
+      <div className="flex items-center gap-3 overflow-x-auto py-4 px-2 scrollbar-hide">
+        {userPets.map((pet: any) => (
+          <div
+            key={pet.id}
+            className={`flex flex-col items-center cursor-pointer ${selectedPet?.id === pet.id ? 'ring-2 ring-pink-400' : ''}`}
+            onClick={() => setSelectedPet(pet)}
+          >
+            <div className="w-14 h-14 rounded-full bg-gradient-to-tr from-pink-400 via-purple-400 to-blue-400 p-1 mb-1 shadow">
+              <img
+                src={pet.profileImage || pet.avatar || '/default-pet.png'}
+                alt={pet.name}
+                className="w-full h-full object-cover rounded-full bg-white"
+              />
+            </div>
+            <span className="text-xs font-medium text-gray-700 truncate max-w-[60px]">{pet.name}</span>
+          </div>
+        ))}
+        {/* Add Pet Button */}
+        <button
+          className="w-14 h-14 rounded-full bg-gradient-to-tr from-pink-400 via-purple-400 to-blue-400 flex items-center justify-center text-white ml-2 shadow hover:scale-105 transition"
+          onClick={() => setShowAddPetModal(true)}
+        >
+          <Plus className="w-7 h-7" />
+        </button>
       </div>
-      {/* Add Pet Button */}
-      <button
-        onClick={() => setShowAddPetModal(true)}
-        className="w-full bg-pink-500 text-white py-2 rounded-lg font-semibold hover:bg-pink-600 transition-colors mb-6 flex items-center justify-center space-x-2"
-      >
-        <Plus className="w-5 h-5" />
-        <span>Add New Pet</span>
-      </button>
-      {/* Pet Management Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="pets" className="flex items-center space-x-2">
-            <Grid3X3 className="w-4 h-4" />
-            <span>My Pets</span>
-          </TabsTrigger>
-          <TabsTrigger value="medical" className="flex items-center space-x-2">
-            <Heart className="w-4 h-4" />
-            <span>Medical Records</span>
-          </TabsTrigger>
-          <TabsTrigger value="care" className="flex items-center space-x-2">
-            <Bot className="w-4 h-4" />
-            <span>AI Care</span>
-          </TabsTrigger>
-        </TabsList>
 
-        <TabsContent value="pets" className="mt-0">
-          {userPets.length > 0 ? (
-            <div className="space-y-4 p-4">
-              {userPets.map((pet: any) => (
-                <Card
-                  key={pet.id}
-                  className={`cursor-pointer hover:shadow-md transition-shadow ${selectedPet?.id === pet.id ? 'ring-2 ring-pink-500 bg-pink-50' : ''}`}
-                  onClick={() => setSelectedPet(pet)}
-                >
-                  <CardContent className="p-4 relative">
-                    <div className="flex items-center space-x-4">
-                      <div className="w-16 h-16 rounded-full overflow-hidden bg-gray-100">
-                        {pet.profileImage || pet.avatar ? (
-                          <img 
-                            src={pet.profileImage || pet.avatar} 
-                            alt={pet.name}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full bg-gradient-to-br from-pink-200 to-blue-200 flex items-center justify-center">
-                            <Heart className="w-6 h-6 text-gray-600" />
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-lg">{pet.name}</h3>
-                        <p className="text-gray-600">{pet.breed} • {pet.gender}</p>
-                        <p className="text-sm text-gray-500">{pet.age} years old</p>
-                        {pet.species && <p className="text-sm text-gray-500">{pet.species}</p>}
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={e => { e.stopPropagation(); setSelectedPet(pet); setActiveTab('medical'); }}
-                        >
-                          <FileText className="w-4 h-4 mr-1" />
-                          Records
-                        </Button>
-                        {selectedPet?.id === pet.id && (
-                          <button
-                            className="bg-white rounded-full p-2 shadow hover:bg-gray-100"
-                            onClick={e => { e.stopPropagation(); setShowEditPetModal(true); }}
-                            aria-label="Edit Pet"
-                          >
-                            <Pencil className="w-5 h-5 text-pink-500" />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+      {/* Main Pet Card - Sectioned, Icon-driven, Modern Design */}
+      {selectedPet && (
+        <div className="bg-white rounded-3xl shadow-2xl overflow-hidden border border-gray-100 mb-4 mx-2">
+          {/* Cover Photo with Camera Icon Overlay */}
+          <div className="relative">
+            <img
+              src={selectedPet.profileImage || selectedPet.avatar || '/default-pet.png'}
+              alt={selectedPet.name}
+              className="w-full h-44 object-cover"
+            />
+            <button
+              className="absolute top-3 right-3 bg-white/80 rounded-full p-2 shadow hover:bg-pink-100 transition"
+              onClick={() => setShowEditPetModal(true)}
+              aria-label="Edit Pet Photo"
+            >
+              <Camera className="w-5 h-5 text-pink-500" />
+            </button>
+          </div>
+          {/* Basic Info Section */}
+          <div className="p-6 border-b border-gray-100">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-lg font-bold text-gray-900">Basic Info</h3>
+              <button className="text-blue-500 text-sm font-medium hover:underline" onClick={() => setShowEditPetModal(true)}>Edit</button>
             </div>
-          ) : (
-            <div className="p-8 text-center">
-              <Heart className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-500">No pets yet</p>
-              <p className="text-sm text-gray-400 mt-1">Add your first pet to get started!</p>
+            <div className="grid grid-cols-2 gap-4">
+              {selectedPet.name && (
+                <div className="flex items-center gap-2"><UserIcon className="w-5 h-5 text-blue-400" /><span><span className="font-semibold">Name</span><br/>{selectedPet.name}</span></div>
+              )}
+              {selectedPet.nickname && (
+                <div className="flex items-center gap-2"><BadgeInfo className="w-5 h-5 text-blue-400" /><span><span className="font-semibold">Nickname</span><br/>{selectedPet.nickname}</span></div>
+              )}
+              {selectedPet.species && (
+                <div className="flex items-center gap-2"><PawPrint className="w-5 h-5 text-blue-400" /><span><span className="font-semibold">Species</span><br/>{selectedPet.species}</span></div>
+              )}
+              {selectedPet.breed && (
+                <div className="flex items-center gap-2"><Hash className="w-5 h-5 text-blue-400" /><span><span className="font-semibold">Breed</span><br/>{selectedPet.breed}</span></div>
+              )}
+              {selectedPet.gender && (
+                <div className="flex items-center gap-2"><UserIcon className="w-5 h-5 text-blue-400" /><span><span className="font-semibold">Sex</span><br/>{selectedPet.gender}</span></div>
+              )}
+              {selectedPet.birthdate && (
+                <div className="flex items-center gap-2"><Cake className="w-5 h-5 text-blue-400" /><span><span className="font-semibold">Birthdate</span><br/>{selectedPet.birthdate}</span></div>
+              )}
+              {selectedPet.age && (
+                <div className="flex items-center gap-2"><CalendarIcon className="w-5 h-5 text-blue-400" /><span><span className="font-semibold">Age</span><br/>{selectedPet.age} years</span></div>
+              )}
+              {selectedPet.weight && (
+                <div className="flex items-center gap-2"><Weight className="w-5 h-5 text-blue-400" /><span><span className="font-semibold">Weight</span><br/>{selectedPet.weight} lbs</span></div>
+              )}
+            </div>
+          </div>
+          {/* Insurance Section */}
+          {(selectedPet.insuranceProvider || selectedPet.insurancePolicy) && (
+            <div className="p-6 border-b border-gray-100">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-lg font-bold text-gray-900">Insurance</h3>
+                <button className="text-blue-500 text-sm font-medium hover:underline" onClick={() => setShowEditPetModal(true)}>Edit</button>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                {selectedPet.insuranceProvider && (
+                  <div className="flex items-center gap-2"><ShieldCheck className="w-5 h-5 text-purple-400" /><span><span className="font-semibold">Provider</span><br/>{selectedPet.insuranceProvider}</span></div>
+                )}
+                {selectedPet.insurancePolicy && (
+                  <div className="flex items-center gap-2"><Hash className="w-5 h-5 text-purple-400" /><span><span className="font-semibold">Policy #</span><br/>{selectedPet.insurancePolicy}</span></div>
+                )}
+              </div>
             </div>
           )}
-        </TabsContent>
-
-        <TabsContent value="medical" className="mt-0">
-          {selectedPet ? (
-            <div className="p-4">
-              <div className="mb-4">
-                <h3 className="text-lg font-semibold">Medical Records for {selectedPet.name}</h3>
-                <p className="text-gray-600">{selectedPet.breed} • {selectedPet.age} years old</p>
+          {/* Diet Section */}
+          {selectedPet.food && (
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-lg font-bold text-gray-900">Diet</h3>
+                <button className="text-blue-500 text-sm font-medium hover:underline" onClick={() => setShowEditPetModal(true)}>Edit</button>
               </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex items-center gap-2"><Utensils className="w-5 h-5 text-green-400" /><span><span className="font-semibold">Food</span><br/>{selectedPet.food}</span></div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Sectioned Navigation */}
+      <div className="space-y-3 px-2 mb-6">
+        <button
+          className="w-full flex items-center justify-between p-4 rounded-2xl bg-white/80 dark:bg-zinc-900/70 shadow hover:bg-pink-50 transition"
+          onClick={() => setActiveTab('medical')}
+        >
+          <span className="flex items-center gap-3"><FileText className="w-5 h-5 text-blue-500" /> Medical Records</span>
+          <ChevronRight className="w-5 h-5 text-gray-400" />
+        </button>
+        <button
+          className="w-full flex items-center justify-between p-4 rounded-2xl bg-white/80 dark:bg-zinc-900/70 shadow hover:bg-pink-50 transition"
+          onClick={() => setActiveTab('ai')}
+        >
+          <span className="flex items-center gap-3"><Bot className="w-5 h-5 text-pink-500" /> AI Recommendations</span>
+          <ChevronRight className="w-5 h-5 text-gray-400" />
+        </button>
+      </div>
+
+      {/* Section Details (Tabs) */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsContent value="medical" className="mt-0">
+          {selectedPet && (
+            <div className="bg-white/80 dark:bg-zinc-900/70 rounded-2xl shadow p-4 my-4 mx-2">
               <MedicalRecordsTab pet={selectedPet} userId={user.id} />
             </div>
-          ) : userPets.length > 0 ? (
-            <div className="p-8 text-center">
-              <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-500">Select a pet to view medical records</p>
-              <p className="text-sm text-gray-400 mt-1">Choose a pet from the "My Pets" tab first</p>
-            </div>
-          ) : (
-            <div className="p-8 text-center">
-              <Heart className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-500">No pets available</p>
-              <p className="text-sm text-gray-400 mt-1">Add a pet first to manage medical records</p>
-            </div>
           )}
         </TabsContent>
-        
-        <TabsContent value="care" className="mt-0">
-          {selectedPet ? (
-            <div className="p-4">
-              <div className="mb-4">
-                <h3 className="text-lg font-semibold">AI Care Assistant for {selectedPet.name}</h3>
-                <p className="text-gray-600">{selectedPet.breed} • {selectedPet.age} years old</p>
-              </div>
+        <TabsContent value="ai" className="mt-0">
+          {selectedPet && (
+            <div className="bg-white/80 dark:bg-zinc-900/70 rounded-2xl shadow p-4 my-4 mx-2">
               <AICareTab pet={selectedPet} userId={user.id} />
-            </div>
-          ) : userPets.length > 0 ? (
-            <div className="p-8 text-center">
-              <Bot className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-500">Select a pet to access AI care recommendations</p>
-              <p className="text-sm text-gray-400 mt-1">Choose a pet from the "My Pets" tab first</p>
-            </div>
-          ) : (
-            <div className="p-8 text-center">
-              <Heart className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-500">No pets available</p>
-              <p className="text-sm text-gray-400 mt-1">Add a pet first to get AI care recommendations</p>
             </div>
           )}
         </TabsContent>
       </Tabs>
+
+      {/* Floating Add Pet Button */}
+      <button
+        className="fixed bottom-6 right-6 bg-gradient-to-tr from-pink-400 via-purple-400 to-blue-400 text-white rounded-full p-4 shadow-lg z-50 hover:scale-110 transition"
+        onClick={() => setShowAddPetModal(true)}
+        aria-label="Add Pet"
+      >
+        <Plus className="w-7 h-7" />
+      </button>
       <BottomNavigation currentPage="profile" />
-      {showAddPetModal && (
-        <AddPetModal
-          isOpen={showAddPetModal}
-          onClose={() => setShowAddPetModal(false)}
-          userId={user.id}
-        />
-      )}
-      {showEditPetModal && selectedPet && (
-        <EditPetModal
-          isOpen={showEditPetModal}
-          onClose={() => setShowEditPetModal(false)}
-          pet={selectedPet}
-          userId={user.id}
-        />
-      )}
-      {showEditProfileModal && (
-        <EditProfileModal
-          isOpen={showEditProfileModal}
-          onClose={() => {
-            setShowEditProfileModal(false);
-            queryClient.invalidateQueries({ queryKey: ['/api/users', user.id] });
-          }}
-          user={user}
-        />
-      )}
+      <AnimatePresence>
+        {showAddPetModal && (
+          <AddPetModal
+            isOpen={showAddPetModal}
+            onClose={() => setShowAddPetModal(false)}
+            userId={user.id}
+          />
+        )}
+        {showEditPetModal && selectedPet && (
+          <EditPetModal
+            isOpen={showEditPetModal}
+            onClose={() => setShowEditPetModal(false)}
+            pet={selectedPet}
+            userId={user.id}
+          />
+        )}
+        {showEditProfileModal && (
+          <EditProfileModal
+            isOpen={showEditProfileModal}
+            onClose={() => {
+              setShowEditProfileModal(false);
+              queryClient.invalidateQueries({ queryKey: ['/api/users', user.id] });
+            }}
+            user={user}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
