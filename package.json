@@ -10,7 +10,8 @@
     "check": "tsc",
     "db:push": "drizzle-kit push",
     "db:docker": "docker-compose up -d",
-    "db:migrate": "node migrate.js"
+    "db:migrate": "node migrate.js",
+    "db:migrate-seed": "node drizzle-migrate-seed.js"
   },
   "dependencies": {
     "@google/genai": "^1.8.0",

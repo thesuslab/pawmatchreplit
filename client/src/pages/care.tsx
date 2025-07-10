@@ -1,6 +1,9 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import BottomNavigation from "@/components/bottom-navigation";
+import PetProfileCard from "@/components/pet-profile-card";
 import AICareTab from "@/components/ai-care-tab";
+import { useToast } from "@/hooks/use-toast";
 
 interface CareProps {
   user: any;
@@ -16,6 +19,9 @@ export default function Care({ user }: CareProps) {
     }
   });
 
+  const [selectedPetId, setSelectedPetId] = useState<number | null>(null);
+  const selectedPet = userPets.find((pet: any) => pet.id === selectedPetId) || userPets[0];
+
   return (
     <div className="max-w-md mx-auto bg-gray-50 min-h-screen relative">
       {/* Header */}
@@ -23,21 +29,22 @@ export default function Care({ user }: CareProps) {
         <h1 className="text-xl font-bold text-gray-900">Care</h1>
       </header>
 
-      {/* Main Content: Show AI Care Tab for each pet */}
-      <div className="flex-1 overflow-y-auto pb-20 p-4 space-y-6">
-        {userPets.length === 0 ? (
-          <div className="text-center py-8">
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">No pets found</h3>
-            <p className="text-gray-600">Add a pet to see AI care recommendations.</p>
+      {/* Pet Selection Row */}
+      <div className="flex overflow-x-auto gap-4 px-4 py-3 scrollbar-hide">
+        {userPets.map((pet: any) => (
+          <div
+            key={pet.id}
+            className={`min-w-[180px] max-w-[200px] cursor-pointer transition-transform ${selectedPet?.id === pet.id ? 'ring-2 ring-pink-400 scale-105' : 'hover:scale-105'}`}
+            onClick={() => setSelectedPetId(pet.id)}
+          >
+            <PetProfileCard pet={pet} currentUser={user} />
           </div>
-        ) : (
-          userPets.map((pet: any) => (
-            <div key={pet.id} className="mb-8">
-              <h2 className="text-lg font-bold mb-2">{pet.name}</h2>
-              <AICareTab pet={pet} userId={user.id} />
-            </div>
-          ))
-        )}
+        ))}
+      </div>
+
+      {/* AI Care Tab for Selected Pet */}
+      <div className="px-4 mt-4">
+        {selectedPet && <AICareTab pet={selectedPet} userId={user.id} />}
       </div>
 
       <BottomNavigation currentPage="care" />

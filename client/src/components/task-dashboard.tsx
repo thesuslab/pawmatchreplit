@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Sparkles, Flame, Plus, Check, Clock, Calendar } from 'lucide-react';
+import { Trash2 } from 'lucide-react';
 
 interface TaskModule {
   id: string;
@@ -23,6 +24,7 @@ interface TaskDashboardProps {
   progress: number; // 0-100
   onAddTask: () => void;
   onToggleSubtask: (moduleId: string, subtaskIdx: number) => void;
+  onDeleteTask: (taskId: string) => void;
 }
 
 function getPriorityColor(priority: string) {
@@ -34,7 +36,7 @@ function getPriorityColor(priority: string) {
   }
 }
 
-export default function TaskDashboard({ modules, streak, aiTaskCount, progress, onAddTask, onToggleSubtask }: TaskDashboardProps) {
+export default function TaskDashboard({ modules, streak, aiTaskCount, progress, onAddTask, onToggleSubtask, onDeleteTask }: TaskDashboardProps) {
   return (
     <Card className="mb-4 bg-white/90 border-2 border-pink-100 shadow-md">
       <CardContent className="p-4">
@@ -77,6 +79,13 @@ export default function TaskDashboard({ modules, streak, aiTaskCount, progress, 
                       <span className={`px-2 py-1 text-xs font-medium rounded ${getPriorityColor(mod.priority)}`}>{mod.priority}</span>
                       <span className="text-xs text-blue-500 ml-2">AI: {Math.round(mod.aiConfidence * 100)}%</span>
                     </div>
+                    <button
+                      className="ml-2 p-1 rounded hover:bg-red-100 text-red-600 transition-colors"
+                      title="Delete Task"
+                      onClick={() => onDeleteTask(mod.id)}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   </div>
                   <div className="font-bold text-gray-800 text-sm mb-1">{mod.title}</div>
                   <div className="text-xs text-gray-600 mb-2">{mod.description}</div>
