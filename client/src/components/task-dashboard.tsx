@@ -19,7 +19,7 @@ interface TaskModule {
 interface TaskDashboardProps {
   modules: TaskModule[];
   streak: number;
-  aiTaskCount: number;
+  aiTaskCount?: number;
   progress: number;
   onAddTask: () => void;
   onToggleSubtask: (moduleId: string, subtaskIdx: number) => void;
@@ -69,7 +69,7 @@ export default function TaskDashboard({
             <CircularProgress percent={progress} />
             <StatItem value={progress + '%'} label="Completed" color="text-blue-600" />
             <StatItem value={streak} label="Day Streak" color="text-orange-600" />
-            <StatItem value={aiTaskCount} label="AI Tasks" color="text-purple-600" />
+            <StatItem value={aiTaskCount ?? 0} label="AI Tasks" color="text-purple-600" />
           </div>
           <button
             className="flex items-center gap-1 text-purple-600 text-xs px-3 py-2 bg-purple-50 rounded-lg hover:bg-purple-100 font-semibold transition-colors"
@@ -105,7 +105,6 @@ export default function TaskDashboard({
                         </button>
                         <Badge variant="secondary" className="capitalize text-xs px-2 py-0.5">{mod.category}</Badge>
                         <span className={`px-2 py-0.5 text-xs font-medium rounded ${getPriorityColor(mod.priority)}`}>{mod.priority}</span>
-                        <span className="text-xs text-blue-500 ml-1">AI: {Math.round(mod.aiConfidence * 100)}%</span>
                       </div>
                       <button
                         className="p-1 rounded hover:bg-red-50 text-red-500 transition-colors"

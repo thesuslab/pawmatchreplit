@@ -8,6 +8,195 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Send, Bot, User, Heart, Brain, Stethoscope, BookOpen } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { v4 as uuid } from 'uuid';
+
+export type TaskModule = {
+  id: string;
+  category: 'Training' | 'Care' | 'Medical' | 'Breeding';
+  title: string;
+  description: string;
+  priority: 'high' | 'medium' | 'low';
+  aiConfidence: number;
+  estimatedTime: string;
+  frequency: 'daily' | 'weekly' | 'once';
+  subtasks: string[];
+  completedSubtasks: boolean[];
+};
+
+export function generateTaskModulesFromPetCareData(data: any): TaskModule[] {
+  const modules: TaskModule[] = [];
+  const petName = data.name || "your pet";
+
+  // Training Plan
+  if (data.trainingPlan?.basicCommands?.length) {
+    modules.push({
+      id: uuid(),
+      category: "Training",
+      title: `Master Basic Commands with ${petName}`,
+      description: "Daily short training to reinforce key commands with rewards and patience.",
+      priority: "medium",
+      aiConfidence: 0.95,
+      estimatedTime: "10 min/day",
+      frequency: "daily",
+      subtasks: data.trainingPlan.basicCommands,
+      completedSubtasks: data.trainingPlan.basicCommands.map(() => false)
+    });
+  }
+  if (data.trainingPlan?.weeklySchedule?.length) {
+    modules.push({
+      id: uuid(),
+      category: "Training",
+      title: "Follow Weekly Training Schedule",
+      description: "Weekly structured plan to keep training consistent and fun.",
+      priority: "medium",
+      aiConfidence: 0.9,
+      estimatedTime: "10 min/day",
+      frequency: "weekly",
+      subtasks: data.trainingPlan.weeklySchedule,
+      completedSubtasks: data.trainingPlan.weeklySchedule.map(() => false)
+    });
+  }
+  if (data.trainingPlan?.tips?.length) {
+    modules.push({
+      id: uuid(),
+      category: "Training",
+      title: "Apply Training Tips",
+      description: "Incorporate these tips into your daily training for best results.",
+      priority: "low",
+      aiConfidence: 0.85,
+      estimatedTime: "5 min/day",
+      frequency: "daily",
+      subtasks: data.trainingPlan.tips,
+      completedSubtasks: data.trainingPlan.tips.map(() => false)
+    });
+  }
+
+  // Care Guidelines
+  if (data.careGuidelines?.dailyRoutine?.length) {
+    modules.push({
+      id: uuid(),
+      category: "Care",
+      title: "Daily Care Routine",
+      description: "Keep your pet happy and healthy with these daily routines.",
+      priority: "medium",
+      aiConfidence: 0.95,
+      estimatedTime: "15 min/day",
+      frequency: "daily",
+      subtasks: data.careGuidelines.dailyRoutine,
+      completedSubtasks: data.careGuidelines.dailyRoutine.map(() => false)
+    });
+  }
+  if (data.careGuidelines?.nutritionTips?.length) {
+    modules.push({
+      id: uuid(),
+      category: "Care",
+      title: "Nutrition & Hydration",
+      description: "Ensure proper nutrition and hydration for optimal health.",
+      priority: "medium",
+      aiConfidence: 0.9,
+      estimatedTime: "5 min/day",
+      frequency: "daily",
+      subtasks: data.careGuidelines.nutritionTips,
+      completedSubtasks: data.careGuidelines.nutritionTips.map(() => false)
+    });
+  }
+  if (data.careGuidelines?.healthMonitoring?.length) {
+    modules.push({
+      id: uuid(),
+      category: "Care",
+      title: "Monitor Health",
+      description: "Regularly check these health indicators.",
+      priority: "high",
+      aiConfidence: 0.9,
+      estimatedTime: "5 min/day",
+      frequency: "daily",
+      subtasks: data.careGuidelines.healthMonitoring,
+      completedSubtasks: data.careGuidelines.healthMonitoring.map(() => false)
+    });
+  }
+  if (data.careGuidelines?.exerciseRequirements) {
+    modules.push({
+      id: uuid(),
+      category: "Care",
+      title: "Exercise Routine",
+      description: data.careGuidelines.exerciseRequirements,
+      priority: "medium",
+      aiConfidence: 0.9,
+      estimatedTime: "15 min/day",
+      frequency: "daily",
+      subtasks: [],
+      completedSubtasks: []
+    });
+  }
+
+  // Medical Recommendations
+  if (data.medicalRecommendations?.vaccinationSchedule?.length) {
+    modules.push({
+      id: uuid(),
+      category: "Medical",
+      title: "Vaccination Schedule",
+      description: "Keep your pet's vaccinations up to date.",
+      priority: "high",
+      aiConfidence: 0.98,
+      estimatedTime: "30 min/visit",
+      frequency: "once",
+      subtasks: data.medicalRecommendations.vaccinationSchedule,
+      completedSubtasks: data.medicalRecommendations.vaccinationSchedule.map(() => false)
+    });
+  }
+  if (data.medicalRecommendations?.preventiveCare?.length) {
+    modules.push({
+      id: uuid(),
+      category: "Medical",
+      title: "Preventive Care Plan",
+      description: "Follow these steps to prevent common health issues.",
+      priority: "high",
+      aiConfidence: 0.95,
+      estimatedTime: "10 min/week",
+      frequency: "weekly",
+      subtasks: data.medicalRecommendations.preventiveCare,
+      completedSubtasks: data.medicalRecommendations.preventiveCare.map(() => false)
+    });
+  }
+  if (data.medicalRecommendations?.commonHealthIssues?.length) {
+    modules.push({
+      id: uuid(),
+      category: "Medical",
+      title: "Watch for Health Issues",
+      description: "Be alert for these common health issues.",
+      priority: "medium",
+      aiConfidence: 0.9,
+      estimatedTime: "5 min/week",
+      frequency: "weekly",
+      subtasks: data.medicalRecommendations.commonHealthIssues,
+      completedSubtasks: data.medicalRecommendations.commonHealthIssues.map(() => false)
+    });
+  }
+
+  // Breeding Advice (optional)
+  if (data.breedingAdvice && (data.breedingAdvice.healthScreening?.length || data.breedingAdvice.considerations?.length)) {
+    modules.push({
+      id: uuid(),
+      category: "Breeding",
+      title: "Breeding Readiness Checklist",
+      description: "Review these before considering breeding.",
+      priority: "low",
+      aiConfidence: 0.8,
+      estimatedTime: "30 min",
+      frequency: "once",
+      subtasks: [
+        ...(data.breedingAdvice.healthScreening || []),
+        ...(data.breedingAdvice.considerations || [])
+      ],
+      completedSubtasks: [
+        ...(data.breedingAdvice.healthScreening || []).map(() => false),
+        ...(data.breedingAdvice.considerations || []).map(() => false)
+      ]
+    });
+  }
+
+  return modules;
+}
 
 interface AICareTabProps {
   pet: any;

@@ -1,19 +1,17 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import BottomNavigation from "@/components/bottom-navigation";
 import AddPetModal from "@/components/add-pet-modal";
 import MedicalRecordsTab from "@/components/medical-records-tab";
 import AICareTab from "@/components/ai-care-tab";
 import EditPetModal from '@/components/edit-pet-modal';
 import EditProfileModal from '@/components/edit-profile-modal';
-import {  Grid3X3 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
 import { Calendar, Activity, Shield, User, ChevronDown, ChevronUp, QrCode, ChevronRight, Plus, Settings, Heart, FileText, Bot, FlaskConical, Edit2, Camera, PawPrint, BadgeInfo, Hash, Cake, Utensils, ShieldCheck, User as UserIcon, Calendar as CalendarIcon, Weight } from 'lucide-react';
-import { useRef } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import TaskDashboard from '@/components/task-dashboard';
+import { generateTaskModulesFromPetCareData, TaskModule } from '@/components/ai-care-tab';
 
 interface ProfileProps {
   user: any;
@@ -21,11 +19,11 @@ interface ProfileProps {
 
 export default function Profile({ user: initialUser }: ProfileProps) {
   const [showAddPetModal, setShowAddPetModal] = useState(false);
-  const [selectedPet, setSelectedPet] = useState<any>(null);
   const [showEditPetModal, setShowEditPetModal] = useState(false);
   const [activeTab, setActiveTab] = useState('pets');
   const [showEditProfileModal, setShowEditProfileModal] = useState(false);
   const queryClient = useQueryClient();
+  const [currentPetIndex, setCurrentPetIndex] = useState(0);
 
   // Fetch latest user data
   const { data: userData, isLoading: userLoading, isError: userError } = useQuery({
@@ -47,6 +45,92 @@ export default function Profile({ user: initialUser }: ProfileProps) {
       return response.json();
     }
   });
+
+  // Update selectedPet based on currentPetIndex
+  const selectedPet = userPets.length > 0 ? userPets[currentPetIndex] : null;
+
+  // State for AI task modules and progress
+  const [taskModules, setTaskModules] = useState<TaskModule[]>([]);
+  const [taskProgress, setTaskProgress] = useState(0);
+  const [taskStreak, setTaskStreak] = useState(0);
+  const [aiTaskCount, setAiTaskCount] = useState(0);
+
+  // Fetch AI recommendations for the selected pet
+  const [recommendations, setRecommendations] = useState<any>(null);
+  useEffect(() => {
+    if (!selectedPet) return;
+    setRecommendations(null);
+    fetch(`/api/ai/recommendations/${selectedPet.id}`)
+      .then(async (res) => {
+        if (!res.ok) {
+          // Try to generate if not found
+          const genRes = await fetch('/api/ai/generate-recommendations', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              petId: selectedPet.id,
+              name: selectedPet.name,
+              breed: selectedPet.breed,
+              age: selectedPet.age,
+              gender: selectedPet.gender,
+              species: selectedPet.species || 'dog',
+            })
+          });
+          if (!genRes.ok) return;
+          const genData = await genRes.json();
+          setRecommendations(genData.recommendations);
+        } else {
+          const data = await res.json();
+          setRecommendations(data.recommendations);
+        }
+      });
+  }, [selectedPet]);
+
+  // Map recommendations to TaskModules
+  useEffect(() => {
+    if (!recommendations) {
+      setTaskModules([]);
+      setAiTaskCount(0);
+      setTaskProgress(0);
+      return;
+    }
+    const modules = generateTaskModulesFromPetCareData({ ...recommendations, name: selectedPet?.name });
+    setTaskModules(modules);
+    setAiTaskCount(modules.length);
+    // Calculate progress
+    const total = modules.reduce((acc, m) => acc + m.subtasks.length, 0);
+    const done = modules.reduce((acc, m) => acc + m.completedSubtasks.filter(Boolean).length, 0);
+    setTaskProgress(total > 0 ? Math.round((done / total) * 100) : 0);
+  }, [recommendations, selectedPet]);
+
+  // Task completion handlers
+  const handleToggleSubtask = (moduleId: string, subtaskIdx: number) => {
+    setTaskModules((prev) => prev.map((mod) =>
+      mod.id === moduleId
+        ? {
+            ...mod,
+            completedSubtasks: mod.completedSubtasks.map((c, i) => i === subtaskIdx ? !c : c)
+          }
+        : mod
+    ));
+  };
+  const handleDeleteTask = (taskId: string) => {
+    setTaskModules((prev) => prev.filter((mod) => mod.id !== taskId));
+    setAiTaskCount((prev) => Math.max(0, prev - 1));
+  };
+  const handleAddTask = () => {
+    // Placeholder: could open a modal to add a custom task
+    alert('Add custom task (not implemented)');
+  };
+
+  // Swipe logic for pets
+  const handleSwipe = (direction: "left" | "right") => {
+    if (direction === "left" && currentPetIndex < userPets.length - 1) {
+      setCurrentPetIndex(currentPetIndex + 1);
+    } else if (direction === "right" && currentPetIndex > 0) {
+      setCurrentPetIndex(currentPetIndex - 1);
+    }
+  };
 
   const handleLogout = () => {
     localStorage.removeItem('user');
@@ -82,11 +166,11 @@ export default function Profile({ user: initialUser }: ProfileProps) {
 
       {/* Horizontal Pet Selector */}
       <div className="flex items-center gap-3 overflow-x-auto py-4 px-2 scrollbar-hide">
-        {userPets.map((pet: any) => (
+        {userPets.map((pet: any, idx: number) => (
           <div
             key={pet.id}
-            className={`flex flex-col items-center cursor-pointer ${selectedPet?.id === pet.id ? 'ring-2 ring-pink-400' : ''}`}
-            onClick={() => setSelectedPet(pet)}
+            className={`flex flex-col items-center cursor-pointer ${currentPetIndex === idx ? 'ring-2 ring-pink-400' : ''}`}
+            onClick={() => setCurrentPetIndex(idx)}
           >
             <div className="w-14 h-14 rounded-full bg-gradient-to-tr from-pink-400 via-purple-400 to-blue-400 p-1 mb-1 shadow">
               <img
@@ -109,85 +193,75 @@ export default function Profile({ user: initialUser }: ProfileProps) {
 
       {/* Main Pet Card - Sectioned, Icon-driven, Modern Design */}
       {selectedPet && (
-        <div className="bg-white rounded-3xl shadow-2xl overflow-hidden border border-gray-100 mb-4 mx-2">
-          {/* Cover Photo with Camera Icon Overlay */}
-          <div className="relative">
+        <motion.div
+          key={selectedPet.id}
+          className="relative flex flex-col items-center justify-start w-full bg-white/80 dark:bg-zinc-900/70 rounded-3xl shadow-2xl border border-gray-100 dark:border-zinc-800 mx-2 mt-2 overflow-hidden"
+          drag="x"
+          dragConstraints={{ left: 0, right: 0 }}
+          onDragEnd={(event, info) => {
+            if (info.offset.x < -100) handleSwipe("left");
+            else if (info.offset.x > 100) handleSwipe("right");
+          }}
+        >
+          {/* Photo Area (75% of screen) */}
+          <div className="w-full h-[75vh] flex items-center justify-center bg-gradient-to-tr from-pink-100 via-purple-100 to-blue-100 dark:from-zinc-800 dark:via-zinc-900 dark:to-zinc-900 overflow-hidden relative">
+            <div className="absolute inset-0 z-0 backdrop-blur-sm bg-white/60 dark:bg-zinc-900/60" />
             <img
               src={selectedPet.profileImage || selectedPet.avatar || '/default-pet.png'}
               alt={selectedPet.name}
-              className="w-full h-44 object-cover"
+              className="object-cover w-full h-full relative z-10"
             />
+            {/* Edit Pet Photo Button */}
             <button
-              className="absolute top-3 right-3 bg-white/80 rounded-full p-2 shadow hover:bg-pink-100 transition"
+              className="absolute top-3 right-3 bg-white/80 dark:bg-zinc-900/80 rounded-full p-2 shadow hover:bg-pink-100 dark:hover:bg-pink-900 transition z-20"
               onClick={() => setShowEditPetModal(true)}
               aria-label="Edit Pet Photo"
             >
               <Camera className="w-5 h-5 text-pink-500" />
             </button>
           </div>
-          {/* Basic Info Section */}
-          <div className="p-6 border-b border-gray-100">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-lg font-bold text-gray-900">Basic Info</h3>
-              <button className="text-blue-500 text-sm font-medium hover:underline" onClick={() => setShowEditPetModal(true)}>Edit</button>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              {selectedPet.name && (
-                <div className="flex items-center gap-2"><UserIcon className="w-5 h-5 text-blue-400" /><span><span className="font-semibold">Name</span><br/>{selectedPet.name}</span></div>
-              )}
-              {selectedPet.nickname && (
-                <div className="flex items-center gap-2"><BadgeInfo className="w-5 h-5 text-blue-400" /><span><span className="font-semibold">Nickname</span><br/>{selectedPet.nickname}</span></div>
-              )}
-              {selectedPet.species && (
-                <div className="flex items-center gap-2"><PawPrint className="w-5 h-5 text-blue-400" /><span><span className="font-semibold">Species</span><br/>{selectedPet.species}</span></div>
-              )}
-              {selectedPet.breed && (
-                <div className="flex items-center gap-2"><Hash className="w-5 h-5 text-blue-400" /><span><span className="font-semibold">Breed</span><br/>{selectedPet.breed}</span></div>
-              )}
-              {selectedPet.gender && (
-                <div className="flex items-center gap-2"><UserIcon className="w-5 h-5 text-blue-400" /><span><span className="font-semibold">Sex</span><br/>{selectedPet.gender}</span></div>
-              )}
-              {selectedPet.birthdate && (
-                <div className="flex items-center gap-2"><Cake className="w-5 h-5 text-blue-400" /><span><span className="font-semibold">Birthdate</span><br/>{selectedPet.birthdate}</span></div>
-              )}
-              {selectedPet.age && (
-                <div className="flex items-center gap-2"><CalendarIcon className="w-5 h-5 text-blue-400" /><span><span className="font-semibold">Age</span><br/>{selectedPet.age} years</span></div>
-              )}
-              {selectedPet.weight && (
-                <div className="flex items-center gap-2"><Weight className="w-5 h-5 text-blue-400" /><span><span className="font-semibold">Weight</span><br/>{selectedPet.weight} lbs</span></div>
+          {/* Info Area Below Photo */}
+          <div className="w-full flex flex-col items-center justify-center py-6">
+            <div className="px-6 py-4 rounded-2xl backdrop-blur-sm bg-white/60 dark:bg-zinc-800/60 shadow max-w-xs w-full flex flex-col items-center">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">{selectedPet.name}</h2>
+              <div className="flex items-center gap-4 mb-2">
+                {selectedPet.age && (
+                  <span className="flex items-center text-gray-700 dark:text-gray-200 text-lg font-medium">
+                    <CalendarIcon className="w-5 h-5 mr-1" /> {selectedPet.age} yrs
+                  </span>
+                )}
+                {selectedPet.gender && (
+                  <span className="flex items-center text-gray-700 dark:text-gray-200 text-lg font-medium">
+                    {/* TODO: Replace with proper gender icons if available */}
+                    {selectedPet.gender.toLowerCase() === 'male' ? (
+                      <User className="w-5 h-5 text-blue-500 mr-1" />
+                    ) : selectedPet.gender.toLowerCase() === 'female' ? (
+                      <UserIcon className="w-5 h-5 text-pink-500 mr-1" />
+                    ) : null}
+                    {selectedPet.gender}
+                  </span>
+                )}
+              </div>
+              {selectedPet.bio && (
+                <p className="text-center text-gray-600 dark:text-gray-300 max-w-md">{selectedPet.bio}</p>
               )}
             </div>
           </div>
-          {/* Insurance Section */}
-          {(selectedPet.insuranceProvider || selectedPet.insurancePolicy) && (
-            <div className="p-6 border-b border-gray-100">
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="text-lg font-bold text-gray-900">Insurance</h3>
-                <button className="text-blue-500 text-sm font-medium hover:underline" onClick={() => setShowEditPetModal(true)}>Edit</button>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                {selectedPet.insuranceProvider && (
-                  <div className="flex items-center gap-2"><ShieldCheck className="w-5 h-5 text-purple-400" /><span><span className="font-semibold">Provider</span><br/>{selectedPet.insuranceProvider}</span></div>
-                )}
-                {selectedPet.insurancePolicy && (
-                  <div className="flex items-center gap-2"><Hash className="w-5 h-5 text-purple-400" /><span><span className="font-semibold">Policy #</span><br/>{selectedPet.insurancePolicy}</span></div>
-                )}
-              </div>
+          {/* AI Task Dashboard */}
+          {taskModules.length > 0 && (
+            <div className="w-full max-w-md mx-auto mb-8">
+              <TaskDashboard
+                modules={taskModules}
+                streak={taskStreak}
+                aiTaskCount={aiTaskCount}
+                progress={taskProgress}
+                onAddTask={handleAddTask}
+                onToggleSubtask={handleToggleSubtask}
+                onDeleteTask={handleDeleteTask}
+              />
             </div>
           )}
-          {/* Diet Section */}
-          {selectedPet.food && (
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="text-lg font-bold text-gray-900">Diet</h3>
-                <button className="text-blue-500 text-sm font-medium hover:underline" onClick={() => setShowEditPetModal(true)}>Edit</button>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="flex items-center gap-2"><Utensils className="w-5 h-5 text-green-400" /><span><span className="font-semibold">Food</span><br/>{selectedPet.food}</span></div>
-              </div>
-            </div>
-          )}
-        </div>
+        </motion.div>
       )}
 
       {/* Sectioned Navigation */}

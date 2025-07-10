@@ -17,6 +17,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Check } from 'lucide-react';
+import { generateTaskModulesFromPetCareData, TaskModule } from '@/components/ai-care-tab';
 
 // Define Notification type
 interface Notification {
@@ -55,6 +56,7 @@ export default function Home({ user }: HomeProps) {
     return () => ws.close();
   }, [user?.id]);
 
+  // Notification header with bell icon and app label
   const unreadCount = notifications.filter(n => !n.read).length;
 
   const handleBellClick = () => {
@@ -152,113 +154,25 @@ export default function Home({ user }: HomeProps) {
     }
   });
 
+  // Fetch follows for the user
+  const { data: follows = [] } = useQuery({
+    queryKey: ['/api/follows/user', user.id],
+    queryFn: async () => {
+      const response = await fetch(`/api/follows/user/${user.id}`);
+      if (!response.ok) throw new Error('Failed to fetch follows');
+      return response.json();
+    }
+  });
+  // Get set of followed pet IDs
+  const followedPetIds = new Set(follows.map((f: any) => f.followedPetId));
+  // Filter posts to only those from followed pets
+  const followedPosts = posts.filter((post: any) => post.pet && followedPetIds.has(post.pet.id));
+
   // State for selected pet
   const [selectedPetId, setSelectedPetId] = useState<number | null>(null);
   const selectedPet = userPets.find((pet: any) => pet.id === selectedPetId) || userPets[0];
 
-  // Compute streak, xp, and progress for header (mock for now)
-  const streak = dashboardState.streak || 0;
-  const xp = dashboardState.xp || 0;
-  // Progress: percent of today's tasks completed for selected pet
-  const todayTasks = allTasks.filter((t: any) => t.petName === selectedPet?.name && t.status !== 'complete');
-  const completedToday = allTasks.filter((t: any) => t.petName === selectedPet?.name && t.status === 'complete').length;
-  const totalToday = todayTasks.length + completedToday;
-  const progress = totalToday === 0 ? 0 : Math.round((completedToday / totalToday) * 100);
-
-  // Filter tasks for selected pet
-  const petTasks = allTasks.filter((t: any) => t.petName === selectedPet?.name);
-
-  // Group petTasks into modules for TaskDashboard
-  // For now, use mock grouping logic based on keywords (in real app, use AI rec structure or task metadata)
-  const categoryMap = {
-    training: ['sit', 'stay', 'come', 'leash', 'recall', 'heel', 'command', 'training'],
-    health: ['exercise', 'walk', 'vet', 'vaccination', 'health', 'monitor', 'checkup'],
-    care: ['groom', 'brush', 'clean', 'nail', 'teeth', 'ear', 'routine', 'care'],
-  };
-  function getCategory(title: string) {
-    const lower = title.toLowerCase();
-    for (const [cat, keywords] of Object.entries(categoryMap)) {
-      if (keywords.some(k => lower.includes(k))) return cat;
-    }
-    return 'other';
-  }
-  // Group tasks by category and module title
-  const modulesMap: Record<string, any> = {};
-  petTasks.forEach((task: any) => {
-    const category = getCategory(task.title);
-    // Use the first word(s) as module title (improve as needed)
-    const modKey = category + ':' + (task.title.split(' ')[0] || task.title);
-    if (!modulesMap[modKey]) {
-      modulesMap[modKey] = {
-        id: modKey,
-        category,
-        title: task.title,
-        description: '',
-        priority: 'medium',
-        aiConfidence: task.isAiGenerated ? 0.9 : 0.7,
-        estimatedTime: '15 min',
-        frequency: 'daily',
-        subtasks: [],
-        completedSubtasks: [],
-      };
-    }
-    modulesMap[modKey].subtasks.push(task.title);
-    modulesMap[modKey].completedSubtasks.push(task.status === 'complete');
-  });
-  const modules = Object.values(modulesMap);
-  const aiTaskCount = petTasks.filter((t: any) => t.isAiGenerated).length;
-
-  // Subtask toggle handler
-  const handleToggleSubtask = (moduleId: string, subtaskIdx: number) => {
-    const mod = modules.find((m: any) => m.id === moduleId);
-    if (!mod) return;
-    const subtaskTitle = mod.subtasks[subtaskIdx];
-    const task = petTasks.find((t: any) => t.title === subtaskTitle);
-    if (!task) return;
-    const newStatus = task.status === 'complete' ? 'pending' : 'complete';
-    taskToggleMutation.mutate({ taskId: task.id, newStatus });
-  };
-
-  // Quick action handlers (placeholders for now)
-  const handleAddTask = () => alert('Add Task coming soon!');
-  const handleAddPost = () => setShowCreatePostModal(true);
-  const handleShareMilestone = () => alert('Share Milestone coming soon!');
-  const handleViewAchievements = () => alert('Achievements modal coming soon!');
-
-  // Demo breed-based visuals
-  const breedVisuals: Record<string, { emoji: string; color: string; demoImg: string }> = {
-    'golden retriever': { emoji: '🐕', color: 'from-orange-400 to-yellow-500', demoImg: 'https://images.unsplash.com/photo-1558788353-f76d92427f16?auto=format&fit=facearea&w=256&h=256&facepad=2' },
-    'british shorthair': { emoji: '🐱', color: 'from-purple-400 to-pink-500', demoImg: 'https://images.unsplash.com/photo-1518717758536-85ae29035b6d?auto=format&fit=facearea&w=256&h=256&facepad=2' },
-    'german shepherd': { emoji: '🐕‍🦺', color: 'from-blue-400 to-cyan-500', demoImg: 'https://images.unsplash.com/photo-1518715308788-3005759c61d3?auto=format&fit=facearea&w=256&h=256&facepad=2' },
-    // Add more breeds as needed
-  };
-  function getBreedVisuals(breed: string) {
-    const key = breed?.toLowerCase() || '';
-    return breedVisuals[key] || { emoji: '🐾', color: 'from-pink-200 to-blue-200', demoImg: 'https://images.unsplash.com/photo-1518715308788-3005759c61d3?auto=format&fit=facearea&w=256&h=256&facepad=2' };
-  }
-
-  // Fallback: If no AI tasks exist for a pet, add a demo AI task module
-  if (modules.length === 0) {
-    const visuals = getBreedVisuals(selectedPet?.breed);
-    modules.push({
-      id: 'demo-training',
-      category: 'training',
-      title: 'Basic Commands',
-      description: 'Practice sit, stay, come commands',
-      priority: 'high',
-      aiConfidence: 0.95,
-      estimatedTime: '15 min',
-      frequency: 'daily',
-      subtasks: [
-        "Practice 'sit' command 5 times",
-        "Work on 'stay' with treats",
-        "Practice recall in yard",
-        "Reward successful commands"
-      ],
-      completedSubtasks: [false, false, false, false],
-    });
-  }
-
+  // --- Layout ---
   return (
     <div className="max-w-md mx-auto bg-white min-h-screen relative">
       {/* Notification dropdown/modal */}
@@ -306,79 +220,24 @@ export default function Home({ user }: HomeProps) {
               <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full px-1.5 py-0.5">{unreadCount}</span>
             )}
           </button>
-          <button onClick={handleChatClick} aria-label="Chat">
-            <MessageCircle className="w-6 h-6 text-gray-600 dark:text-gray-400" />
-          </button>
         </div>
       </header>
-      {/* Stories Highlights */}
-      <StoriesHighlights pets={userPets} />
-
-      {/* Main Content with Pull to Refresh */}
-      <PullToRefresh onRefresh={async () => queryClient.invalidateQueries({ queryKey: ['/api/posts/feed', user.id] })}>
-        <>
-          <div className="px-4 pt-4">
-            {/* New Dashboard Header */}
-            <DashboardHeader
-              user={user}
-              streak={streak}
-              xp={xp}
-              progress={progress}
-              onAddTask={handleAddTask}
-              onAddPost={handleAddPost}
-              onShareMilestone={handleShareMilestone}
-              onViewAchievements={handleViewAchievements}
-            />
-            {/* Pet Cards Carousel */}
-            <PetCardsCarousel
-              pets={userPets.map((pet: any) => {
-                const visuals = getBreedVisuals(pet.breed);
-                return {
-                  id: pet.id,
-                  name: pet.name,
-                  breed: pet.breed,
-                  age: pet.age + ' years',
-                  avatar: pet.profileImage || pet.avatar || visuals.demoImg,
-                  emoji: visuals.emoji,
-                  color: visuals.color,
-                  progress: progress, // For now, use same progress for all
-                  streakDays: streak, // For now, use same streak for all
-                  nextTask: petTasks.find(t => t.status !== 'complete')?.title || '—',
-                };
-              })}
-              selectedPetId={selectedPet?.id}
-              onSelectPet={setSelectedPetId}
-            />
-            {/* Main Task Panel for Selected Pet */}
-            <TaskDashboard
-              modules={modules}
-              streak={streak}
-              aiTaskCount={aiTaskCount}
-              progress={progress}
-              onAddTask={handleAddTask}
-              onToggleSubtask={handleToggleSubtask}
-              onDeleteTask={() => {}}
-              compact={true}
-            />
+      <div className="flex-1 overflow-y-auto pb-20">
+        {isLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-pink-500"></div>
           </div>
-          <div className="flex-1 overflow-y-auto pb-20">
-            {isLoading ? (
-              <div className="flex items-center justify-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-pink-500"></div>
-              </div>
-            ) : posts.length > 0 ? (
-              posts.map((post: any) => (
-                <PetPost key={post.id} post={post} currentUser={user} />
-              ))
-            ) : (
-              <div className="text-center py-8 px-4">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">No posts yet!</h3>
-                <p className="text-gray-600 dark:text-gray-400 mb-4">Follow some pets or create your first post to get started.</p>
-              </div>
-            )}
+        ) : followedPosts.length > 0 ? (
+          followedPosts.map((post: any) => (
+            <PetPost key={post.id} post={post} currentUser={user} />
+          ))
+        ) : (
+          <div className="text-center py-8 px-4">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">No posts yet!</h3>
+            <p className="text-gray-600 dark:text-gray-400 mb-4">Follow some pets or create your first post to get started.</p>
           </div>
-        </>
-      </PullToRefresh>
+        )}
+      </div>
 
       {/* Floating Add Buttons */}
       <div className="fixed bottom-24 right-4 flex flex-col space-y-3 z-40">
@@ -430,11 +289,11 @@ export default function Home({ user }: HomeProps) {
             {/* Today's Tasks */}
             <div>
               <div className="font-semibold text-base mb-2">Today's Tasks</div>
-              {modules.length === 0 ? (
+              {/* taskModules.length === 0 ? (
                 <div className="text-xs text-gray-500">No tasks for today! 🎉</div>
               ) : (
                 <div className="space-y-2">
-                  {modules.map((mod) => (
+                  {taskModules.map((mod) => (
                     mod.subtasks.map((sub, idx) => (
                       !mod.completedSubtasks[idx] && (
                         <div key={mod.id + '-' + idx} className="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2">
@@ -454,16 +313,18 @@ export default function Home({ user }: HomeProps) {
                     ))
                   ))}
                 </div>
-              )}
+              ) : ( */}
+                <div className="text-xs text-gray-500">No tasks for today! 🎉</div>
+              {/* )} */}
             </div>
             {/* Completed Tasks */}
             <div>
               <div className="font-semibold text-base mb-2 mt-4">Completed</div>
-              {modules.every(mod => mod.completedSubtasks.every(Boolean)) ? (
+              {/* taskModules.every(mod => mod.completedSubtasks.every(Boolean)) ? (
                 <div className="text-xs text-gray-500">No completed tasks yet.</div>
               ) : (
                 <div className="space-y-2">
-                  {modules.map((mod) => (
+                  {taskModules.map((mod) => (
                     mod.subtasks.map((sub, idx) => (
                       mod.completedSubtasks[idx] && (
                         <div key={mod.id + '-done-' + idx} className="flex items-center justify-between rounded-lg bg-green-50 px-3 py-2 opacity-80">
@@ -483,39 +344,13 @@ export default function Home({ user }: HomeProps) {
                     ))
                   ))}
                 </div>
-              )}
+              ) : ( */}
+                <div className="text-xs text-gray-500">No completed tasks yet.</div>
+              {/* )} */}
             </div>
           </div>
         </DialogContent>
       </Dialog>
     </div>
-  );
-}
-
-function PetCard({ pet, userId }: { pet: any, userId: number }) {
-  // Only show pet info, no tasks
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: -10 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -10 }}
-      className="mb-4 backdrop-blur-sm bg-white/60 dark:bg-zinc-900/60 rounded-2xl shadow-lg hover:-translate-y-1 hover:shadow-2xl transition p-4"
-    >
-      <div className="flex w-full items-stretch">
-        {/* Left: Pet photo and name */}
-        <div className="flex flex-col items-center justify-center w-full p-2">
-          <div className="w-16 h-16 rounded-full overflow-hidden bg-gray-100 mb-2">
-            {pet.profileImage || pet.avatar ? (
-              <img src={pet.profileImage || pet.avatar} alt={pet.name} className="w-full h-full object-cover" />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-pink-200 to-blue-200">
-                <Heart className="w-6 h-6 text-gray-600" />
-              </div>
-            )}
-          </div>
-          <div className="font-semibold text-center text-sm">{pet.name}</div>
-        </div>
-      </div>
-    </motion.div>
   );
 }
