@@ -1,4 +1,5 @@
 import { Flame, Crown, Heart, Star } from 'lucide-react';
+import { useRef, useEffect } from 'react';
 
 interface PetCardsCarouselProps {
   pets: Array<{
@@ -12,12 +13,53 @@ interface PetCardsCarouselProps {
     progress: number;
     streakDays: number;
     nextTask?: string;
+    profileImage?: string;
+    photos?: string[];
   }>;
   selectedPetId: number;
   onSelectPet: (petId: number) => void;
 }
 
 export default function PetCardsCarousel({ pets, selectedPetId, onSelectPet }: PetCardsCarouselProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
+
+  // Auto-select the most centered card on scroll
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    let ticking = false;
+    const handleScroll = () => {
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          if (!container) return;
+          const containerRect = container.getBoundingClientRect();
+          let minDiff = Infinity;
+          let selectedIdx = 0;
+          cardRefs.current.forEach((card, idx) => {
+            if (!card) return;
+            const rect = card.getBoundingClientRect();
+            // Find the card whose center is closest to the container's center
+            const cardCenter = rect.left + rect.width / 2;
+            const containerCenter = containerRect.left + containerRect.width / 2;
+            const diff = Math.abs(cardCenter - containerCenter);
+            if (diff < minDiff) {
+              minDiff = diff;
+              selectedIdx = idx;
+            }
+          });
+          if (pets[selectedIdx] && pets[selectedIdx].id !== selectedPetId) {
+            onSelectPet(pets[selectedIdx].id);
+          }
+          ticking = false;
+        });
+        ticking = true;
+      }
+    };
+    container.addEventListener('scroll', handleScroll, { passive: true });
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, [pets, selectedPetId, onSelectPet]);
+
   const samplePets = pets.length > 0 ? pets : [
     {
       id: 1,
@@ -63,7 +105,7 @@ export default function PetCardsCarousel({ pets, selectedPetId, onSelectPet }: P
         <div className="absolute bottom-8 left-1/3 w-12 h-12 bg-gradient-to-br from-primary/10 to-secondary/10 rounded-full blur-xl animate-pulse" style={{ animationDelay: '2s' }}></div>
       </div>
 
-      <div className="flex gap-6 overflow-x-auto pb-4 scrollbar-hide">
+      <div ref={containerRef} className="flex gap-6 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory">
         {samplePets.map((pet, index) => {
           const isSelected = selectedPetId === pet.id;
           const isTopPerformer = pet.progress > 90;
@@ -72,10 +114,11 @@ export default function PetCardsCarousel({ pets, selectedPetId, onSelectPet }: P
           return (
             <div
               key={pet.id}
+              ref={el => cardRefs.current[index] = el}
               onClick={() => onSelectPet(pet.id)}
               className={`
                 relative min-w-[220px] max-w-[240px] rounded-3xl p-6 cursor-pointer 
-                transition-all duration-500 ease-out
+                transition-all duration-500 ease-out snap-center
                 ${isSelected 
                   ? 'scale-105 shadow-2xl shadow-primary/25 ring-4 ring-primary/20' 
                   : 'hover:scale-102 hover:shadow-xl hover:shadow-black/10 dark:hover:shadow-white/5'
@@ -91,6 +134,8 @@ export default function PetCardsCarousel({ pets, selectedPetId, onSelectPet }: P
             >
               {/* Glassmorphism overlay */}
               <div className="absolute inset-0 glass rounded-3xl"></div>
+              {/* Dark overlay for text readability */}
+              <div className="absolute inset-0 bg-black/30 rounded-3xl z-0" />
               
               {/* Top badges */}
               <div className="relative z-10 flex justify-between items-start mb-4">
@@ -118,8 +163,18 @@ export default function PetCardsCarousel({ pets, selectedPetId, onSelectPet }: P
               {/* Pet avatar and info */}
               <div className="relative z-10 flex items-center gap-4 mb-6">
                 <div className="relative">
-                  <div className="w-16 h-16 rounded-full bg-white/20 dark:bg-black/20 backdrop-blur-sm flex items-center justify-center text-4xl shadow-lg border border-white/30 dark:border-white/10">
-                    {pet.emoji || (pet.avatar ? <img src={pet.avatar} alt={pet.name} className="w-14 h-14 rounded-full object-cover" /> : '🐾')}
+                  <div className="w-16 h-16 rounded-full bg-white/20 dark:bg-black/20 backdrop-blur-sm flex items-center justify-center text-4xl shadow-lg border border-white/30 dark:border-white/10 overflow-hidden">
+                    {pet.profileImage ? (
+                      <img src={pet.profileImage} alt={pet.name} className="w-14 h-14 rounded-full object-cover" />
+                    ) : pet.avatar ? (
+                      <img src={pet.avatar} alt={pet.name} className="w-14 h-14 rounded-full object-cover" />
+                    ) : pet.photos && pet.photos.length > 0 ? (
+                      <img src={pet.photos[0]} alt={pet.name} className="w-14 h-14 rounded-full object-cover" />
+                    ) : pet.emoji ? (
+                      pet.emoji
+                    ) : (
+                      '🐾'
+                    )}
                   </div>
                   {isSelected && (
                     <div className="absolute -top-1 -right-1 w-6 h-6 bg-gradient-to-br from-green-400 to-emerald-500 rounded-full flex items-center justify-center border-2 border-white dark:border-gray-800">

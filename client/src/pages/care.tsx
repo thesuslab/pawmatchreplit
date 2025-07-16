@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import BottomNavigation from "@/components/bottom-navigation";
 import PetProfileCard from "@/components/pet-profile-card";
@@ -7,7 +7,22 @@ import AICareTab from "@/components/ai-care-tab";
 import { useToast } from "@/hooks/use-toast";
 import TaskDashboard from '@/components/task-dashboard';
 import { generateTaskModulesFromPetCareData, TaskModule } from '@/components/ai-care-tab';
-import { useEffect } from 'react';
+import PetCardsCarousel from "@/components/pet-cards-carousel";
+
+function getLocalTasks(petId: number): TaskModule[] {
+  const all = JSON.parse(localStorage.getItem('pawmatch_tasks') || '{}');
+  return all[petId] || [];
+}
+function setLocalTasks(petId: number, tasks: TaskModule[]) {
+  const all = JSON.parse(localStorage.getItem('pawmatch_tasks') || '{}');
+  all[petId] = tasks;
+  localStorage.setItem('pawmatch_tasks', JSON.stringify(all));
+}
+
+// Extend TaskModule for custom tasks
+interface CustomTaskModule extends TaskModule {
+  isCustom: boolean;
+}
 
 interface CareProps {
   user: any;
@@ -28,8 +43,16 @@ export default function Care({ user }: CareProps) {
 
   // AI Task Dashboard logic (no aiTaskCount, no aiConfidence)
   const [taskModules, setTaskModules] = useState<TaskModule[]>([]);
-  const [taskProgress, setTaskProgress] = useState(0);
-  const [taskStreak, setTaskStreak] = useState(0); // Placeholder, wire up real streak logic later
+  // Calculate progress and streak directly from taskModules
+  const totalTasks = taskModules.reduce((acc, m) => acc + m.subtasks.length, 0);
+  const doneTasks = taskModules.reduce((acc, m) => acc + m.completedSubtasks.filter(Boolean).length, 0);
+  const taskProgress = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0;
+  // Streak: get from localStorage for selected pet
+  let taskStreak = 0;
+  if (selectedPet) {
+    const streakData = JSON.parse(localStorage.getItem('pawmatch_streaks') || '{}');
+    taskStreak = streakData[selectedPet.id]?.streak || 0;
+  }
   const [recommendations, setRecommendations] = useState<any>(null);
   useEffect(() => {
     if (!selectedPet) return;
@@ -62,15 +85,10 @@ export default function Care({ user }: CareProps) {
   useEffect(() => {
     if (!recommendations) {
       setTaskModules([]);
-      setTaskProgress(0);
       return;
     }
     const modules = generateTaskModulesFromPetCareData({ ...recommendations, name: selectedPet?.name });
     setTaskModules(modules);
-    // Calculate progress
-    const total = modules.reduce((acc, m) => acc + m.subtasks.length, 0);
-    const done = modules.reduce((acc, m) => acc + m.completedSubtasks.filter(Boolean).length, 0);
-    setTaskProgress(total > 0 ? Math.round((done / total) * 100) : 0);
   }, [recommendations, selectedPet]);
   // Task completion handlers
   const handleToggleSubtask = (moduleId: string, subtaskIdx: number) => {
@@ -86,9 +104,58 @@ export default function Care({ user }: CareProps) {
   const handleDeleteTask = (taskId: string) => {
     setTaskModules((prev) => prev.filter((mod) => mod.id !== taskId));
   };
-  const handleAddTask = () => {
-    alert('Add custom task (not implemented)');
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newTask, setNewTask] = useState("");
+
+  // Load custom tasks from localStorage
+  useEffect(() => {
+    if (!selectedPet) return;
+    const localTasks = getLocalTasks(selectedPet.id);
+    setTaskModules((prev) => [
+      ...prev.filter(m => !(m as CustomTaskModule).isCustom),
+      ...localTasks.map((t: TaskModule) => ({
+        ...t,
+        isCustom: true
+      }))
+    ]);
+  }, [selectedPet]);
+
+  // Save custom tasks to localStorage on change
+  useEffect(() => {
+    if (!selectedPet) return;
+    const custom = taskModules.filter((m: TaskModule | CustomTaskModule) => (m as CustomTaskModule).isCustom);
+    setLocalTasks(selectedPet.id, custom as TaskModule[]);
+  }, [taskModules, selectedPet]);
+
+  // Add Task handler
+  const handleAddTask = () => setShowAddModal(true);
+  const handleSaveTask = () => {
+    if (!newTask.trim()) return;
+    setTaskModules((prev) => [
+      ...prev,
+      {
+        id: 'custom-' + Date.now(),
+        category: 'Care', // Use a valid TaskModule category
+        title: newTask,
+        description: '',
+        priority: 'medium',
+        aiConfidence: 0,
+        estimatedTime: '',
+        frequency: 'once',
+        subtasks: [newTask],
+        completedSubtasks: [false],
+        isCustom: true
+      } as CustomTaskModule
+    ]);
+    setNewTask("");
+    setShowAddModal(false);
   };
+
+  // Sort taskModules: custom tasks first
+  const sortedTaskModules = [
+    ...taskModules.filter((m: any) => (m as any).isCustom),
+    ...taskModules.filter((m: any) => !(m as any).isCustom)
+  ];
 
   return (
     <div className="max-w-md mx-auto bg-gray-50 min-h-screen relative">
@@ -96,33 +163,38 @@ export default function Care({ user }: CareProps) {
       <header className="bg-white border-b border-gray-200 px-4 py-3 sticky top-0 z-50">
         <h1 className="text-xl font-bold text-gray-900">Care</h1>
       </header>
-
       {/* Pet Selection Row */}
-      <div className="px-4 py-3">
-        <Carousel opts={{ align: "center", loop: false }}>
-          <CarouselContent>
-            {userPets.map((pet: any) => (
-              <CarouselItem key={pet.id} className="px-2">
-                <div
-                  className={`max-w-[320px] mx-auto ${selectedPet?.id === pet.id ? 'ring-2 ring-pink-400 scale-105' : ''}`}
-                  onClick={() => setSelectedPetId(pet.id)}
-                >
-                  <PetProfileCard pet={pet} currentUser={user} expandable={false} />
-                </div>
-              </CarouselItem>
-            ))}
-          </CarouselContent>
-        </Carousel>
+      <div className="px-0 pt-2 pb-4">
+        <PetCardsCarousel
+          pets={userPets}
+          selectedPetId={selectedPet?.id}
+          onSelectPet={setSelectedPetId}
+        />
       </div>
-
-      {/* AI Care Tab for Selected Pet */}
-
+      {/* Add Task Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-2xl p-6 w-80 shadow-2xl flex flex-col gap-4">
+            <h2 className="text-lg font-bold">Add Task</h2>
+            <input
+              className="border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
+              placeholder="Task name..."
+              value={newTask}
+              onChange={e => setNewTask(e.target.value)}
+              autoFocus
+            />
+            <div className="flex gap-2 justify-end">
+              <button className="px-4 py-2 rounded-lg bg-gray-100" onClick={() => setShowAddModal(false)}>Cancel</button>
+              <button className="px-4 py-2 rounded-lg bg-primary text-white" onClick={handleSaveTask}>Add</button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* AI Task Dashboard for Selected Pet */}
       <div className="px-4 mt-4">
-        {selectedPet && taskModules.length > 0 && (
+        {selectedPet && sortedTaskModules.length > 0 && (
           <TaskDashboard
-            modules={taskModules}
-            streak={taskStreak}
+            modules={sortedTaskModules}
             progress={taskProgress}
             onAddTask={handleAddTask}
             onToggleSubtask={handleToggleSubtask}
@@ -131,7 +203,6 @@ export default function Care({ user }: CareProps) {
           />
         )}
       </div>
-
       <BottomNavigation currentPage="care" />
     </div>
   );

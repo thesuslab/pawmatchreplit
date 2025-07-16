@@ -13,9 +13,10 @@ interface PetProfileCardProps {
   isInitiallyFollowing?: boolean;
   onFollowChange?: () => void;
   expandable?: boolean;
+  hideConnectButton?: boolean; // NEW PROP
 }
 
-export default function PetProfileCard({ pet, currentUser, isInitiallyFollowing = false, onFollowChange, expandable = true }: PetProfileCardProps) {
+export default function PetProfileCard({ pet, currentUser, isInitiallyFollowing = false, onFollowChange, expandable = true, hideConnectButton = false }: PetProfileCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
   const [isFollowing, setIsFollowing] = useState(isInitiallyFollowing);
@@ -138,31 +139,32 @@ export default function PetProfileCard({ pet, currentUser, isInitiallyFollowing 
             </div>
 
             {/* Connect Button */}
-            <div className="flex gap-3">
-              <button
-                className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 text-white py-3 px-6 rounded-2xl font-semibold hover:from-purple-600 hover:to-pink-600 transition-all duration-200 shadow-lg hover:shadow-xl flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
-                disabled={isFollowing || loadingFollow}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  followMutation.mutate();
-                }}
-              >
-                <Heart className={`w-5 h-5 ${isFollowing ? 'fill-current' : ''}`} />
-                <span>{isFollowing ? "Connected" : loadingFollow ? "Connecting..." : "Connect"}</span>
-              </button>
-              
-              {expandable && !isExpanded && (
+            {!hideConnectButton && (
+              <div className="flex gap-3">
                 <button
+                  className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 text-white py-3 px-6 rounded-2xl font-semibold hover:from-purple-600 hover:to-pink-600 transition-all duration-200 shadow-lg hover:shadow-xl flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                  disabled={isFollowing || loadingFollow}
                   onClick={(e) => {
                     e.stopPropagation();
-                    setIsExpanded(true);
+                    followMutation.mutate();
                   }}
-                  className="px-4 py-3 bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-300 rounded-2xl hover:bg-gray-200 dark:hover:bg-zinc-700 transition-colors"
                 >
-                  <ChevronDown className="w-5 h-5" />
+                  <Heart className={`w-5 h-5 ${isFollowing ? 'fill-current' : ''}`} />
+                  <span>{isFollowing ? "Connected" : loadingFollow ? "Connecting..." : "Connect"}</span>
                 </button>
-              )}
-            </div>
+                {expandable && !isExpanded && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsExpanded(true);
+                    }}
+                    className="px-4 py-3 bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-300 rounded-2xl hover:bg-gray-200 dark:hover:bg-zinc-700 transition-colors"
+                  >
+                    <ChevronDown className="w-5 h-5" />
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </motion.div>
@@ -204,16 +206,18 @@ export default function PetProfileCard({ pet, currentUser, isInitiallyFollowing 
 
             <div className="p-6">
               {/* Connect Button in expanded view */}
-              <div className="flex justify-center mb-6">
-                <button
-                  className="flex items-center gap-2 px-6 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-2xl font-semibold shadow-lg hover:from-purple-600 hover:to-pink-600 transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
-                  disabled={isFollowing || loadingFollow}
-                  onClick={() => followMutation.mutate()}
-                >
-                  <Heart className={`w-5 h-5 ${isFollowing ? 'fill-current' : ''}`} />
-                  <span>{isFollowing ? "Connected" : loadingFollow ? "Connecting..." : "Connect"}</span>
-                </button>
-              </div>
+              {!hideConnectButton && (
+                <div className="flex justify-center mb-6">
+                  <button
+                    className="flex items-center gap-2 px-6 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-2xl font-semibold shadow-lg hover:from-purple-600 hover:to-pink-600 transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
+                    disabled={isFollowing || loadingFollow}
+                    onClick={() => followMutation.mutate()}
+                  >
+                    <Heart className={`w-5 h-5 ${isFollowing ? 'fill-current' : ''}`} />
+                    <span>{isFollowing ? "Connected" : loadingFollow ? "Connecting..." : "Connect"}</span>
+                  </button>
+                </div>
+              )}
 
               {/* Quick Stats */}
               <div className="grid grid-cols-3 gap-4 mb-6">

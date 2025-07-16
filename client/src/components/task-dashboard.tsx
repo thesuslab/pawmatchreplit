@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Sparkles, Flame, Plus, Check, Clock, Calendar, ChevronDown, ChevronRight, Trash2 } from 'lucide-react';
@@ -18,7 +18,7 @@ interface TaskModule {
 
 interface TaskDashboardProps {
   modules: TaskModule[];
-  streak: number;
+  streak?: number; // Make optional
   aiTaskCount?: number;
   progress: number;
   onAddTask: () => void;
@@ -43,7 +43,8 @@ export default function TaskDashboard({
   progress,
   onAddTask,
   onToggleSubtask,
-  onDeleteTask
+  onDeleteTask,
+  compact
 }: TaskDashboardProps) {
 
   const [expandedTaskIds, setExpandedTaskIds] = useState<Set<string>>(new Set());
@@ -60,25 +61,46 @@ export default function TaskDashboard({
     });
   };
 
+  // --- Glassmorphism & Gradient Styles ---
+  // (Add glass/gradient classes to Card and CardContent below)
+
+  // --- Streak & Completion Logic (Frontend Only) ---
+  // Save streak to localStorage per pet (assume modules[0]?.id or pass petId as prop for real use)
+  useEffect(() => {
+    if (!modules.length) return;
+    const petId = modules[0]?.id || 'default';
+    const today = new Date().toISOString().slice(0, 10);
+    const allDone = modules.every(m => m.completedSubtasks.every(Boolean));
+    let streakData = JSON.parse(localStorage.getItem('pawmatch_streaks') || '{}');
+    if (!streakData[petId]) streakData[petId] = { streak: 0, lastDate: null };
+    if (allDone && streakData[petId].lastDate !== today) {
+      streakData[petId].streak += 1;
+      streakData[petId].lastDate = today;
+      localStorage.setItem('pawmatch_streaks', JSON.stringify(streakData));
+    } else if (!allDone && streakData[petId].lastDate === today) {
+      // If user unchecks a task, remove today's streak
+      streakData[petId].streak = Math.max(0, streakData[petId].streak - 1);
+      streakData[petId].lastDate = null;
+      localStorage.setItem('pawmatch_streaks', JSON.stringify(streakData));
+    }
+  }, [modules]);
+
   return (
-    <Card className="mb-4 bg-white/90 border border-purple-100 shadow-sm">
+    <Card className="mb-4 bg-white/60 dark:bg-zinc-900/60 border-0 shadow-xl rounded-3xl backdrop-blur-sm">
       <CardContent className="p-4">
         {/* Stats */}
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-4">
             <CircularProgress percent={progress} />
             <StatItem value={progress + '%'} label="Completed" color="text-blue-600" />
-            <StatItem value={streak} label="Day Streak" color="text-orange-600" />
-            <StatItem value={aiTaskCount ?? 0} label="AI Tasks" color="text-purple-600" />
           </div>
           <button
-            className="flex items-center gap-1 text-purple-600 text-xs px-3 py-2 bg-purple-50 rounded-lg hover:bg-purple-100 font-semibold transition-colors"
+            className="flex items-center gap-1 text-purple-600 text-xs px-3 py-2 bg-purple-50/70 rounded-lg hover:bg-purple-100 font-semibold transition-colors shadow-md"
             onClick={onAddTask}
           >
             <Plus className="w-4 h-4" /> Add Task
           </button>
         </div>
-
         {/* Tasks */}
         <div>
           <div className="font-semibold text-base mb-2">Today's Tasks</div>
@@ -91,7 +113,7 @@ export default function TaskDashboard({
                 return (
                   <div
                     key={mod.id}
-                    className="rounded-lg border border-gray-200 bg-gray-50 p-3 transition-shadow hover:shadow-sm"
+                    className="rounded-lg border border-gray-200 bg-white/80 dark:bg-zinc-800/80 p-3 transition-shadow hover:shadow-md backdrop-blur-sm"
                   >
                     <div className="flex items-center justify-between cursor-pointer" onClick={() => toggleExpand(mod.id)}>
                       <div className="flex items-center gap-2">
